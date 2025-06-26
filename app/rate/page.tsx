@@ -52,14 +52,15 @@ function RateCustomerContent() {
   } = useVoiceRecording({
     onTranscript: (finalTranscript) => {
       if (finalTranscript.trim()) {
-        // Append to existing comment or replace if empty
+        // Replace or append the transcribed text
         setComment(prev => {
-          const newContent = `[Voice Review]: ${finalTranscript}`;
-          return prev ? `${prev}\n\n${newContent}` : newContent;
+          const existingLines = prev.split('\n').filter(line => !line.startsWith('[Voice Review]:'));
+          const newContent = `[Voice Review]: ${finalTranscript.trim()}`;
+          return [...existingLines, newContent].join('\n').trim();
         });
         
         toast({
-          title: "Voice Note Added",
+          title: "Voice Review Added",
           description: "Your voice review has been transcribed and added to comments.",
           className: "bg-green-500 text-white",
         });
@@ -129,11 +130,12 @@ function RateCustomerContent() {
         <AlertTitle className="text-blue-800">Be Fair & Objective</AlertTitle>
         <AlertDescription>
           Your ratings contribute to a trusted community. Use voice reviews for detailed feedback.
-          {!isRecordingSupported && (
-            <span className="block mt-1 text-sm text-orange-600">
-              Voice recording not supported in this browser. Please use Chrome, Edge, or Safari.
-            </span>
-          )}
+          <span className="block mt-1 text-sm text-orange-600">
+            {isRecordingSupported 
+              ? "Voice recording is available for detailed feedback." 
+              : "Voice recording not supported in this browser. Please use Chrome, Edge, or Safari."
+            }
+          </span>
         </AlertDescription>
       </Alert>
       <Card className="border-border-subtle shadow-sm">
@@ -223,13 +225,23 @@ function RateCustomerContent() {
 
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">Voice Review (Optional)</Label>
-              {transcript && isRecording && (
-                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Listening:</strong> {transcript}
-                  </p>
-                </div>
-              )}
+              <div className={cn(
+                "mb-3 p-3 border rounded-lg transition-all duration-200",
+                isRecording 
+                  ? "bg-blue-50 border-blue-200" 
+                  : "bg-gray-50 border-gray-200",
+                !transcript && "opacity-0"
+              )}>
+                <p className="text-sm text-blue-800">
+                  <strong>{isRecording ? "Listening:" : "Last recording:"}</strong>{" "}
+                  <span className={cn(
+                    "inline-block",
+                    isRecording && "animate-pulse"
+                  )}>
+                    {transcript || "Waiting for speech..."}
+                  </span>
+                </p>
+              </div>
               <div className="flex items-center gap-4">
                 <Button
                   type="button"
@@ -262,11 +274,12 @@ function RateCustomerContent() {
               </div>
               <p className="text-xs text-text-secondary/80">
                 Record a detailed voice review. It will be transcribed and added to your comments automatically.
-                {!isRecordingSupported && (
-                  <span className="block text-orange-600 mt-1">
-                    Voice recording requires a modern browser with microphone access.
-                  </span>
-                )}
+                <span className="block text-orange-600 mt-1">
+                  {isRecordingSupported 
+                    ? "Voice recording is ready. Click the button to start." 
+                    : "Voice recording requires a modern browser with microphone access."
+                  }
+                </span>
               </p>
             </div>
 

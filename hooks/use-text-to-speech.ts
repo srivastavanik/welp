@@ -17,12 +17,20 @@ interface UseTextToSpeechOptions {
 export function useTextToSpeech(options: UseTextToSpeechOptions = {}) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const currentUrlRef = useRef<string | null>(null);
   const { toast } = useToast();
 
-  const speak = useCallback(async (text: string) => {
+  const speak = useCallback(async (text: string, forcePlay: boolean = false) => {
     if (!text.trim()) return;
+
+    // Check if we need user interaction for audio playback
+    if (!hasUserInteracted && !forcePlay) {
+      // Store the text to play later when user interacts
+      console.warn('Audio playback requires user interaction. Use forcePlay=true after user gesture.');
+      return;
+    }
 
     try {
       setIsLoading(true);
@@ -50,7 +58,10 @@ export function useTextToSpeech(options: UseTextToSpeechOptions = {}) {
       audioRef.current = audio;
 
       audio.onloadstart = () => setIsLoading(false);
-      audio.onplay = () => setIsPlaying(true);
+      audio.onplay = () => {
+        setIsPlaying(true);
+        setHasUserInteracted(true); // Mark that user has interacted
+      };
       audio.onended = () => {
         setIsPlaying(false);
         options.onEnd?.();
@@ -60,19 +71,42 @@ export function useTextToSpeech(options: UseTextToSpeechOptions = {}) {
           currentUrlRef.current = null;
         }
       };
-      audio.onerror = () => {
+      audio.onerror = (event) => {
         setIsLoading(false);
         setIsPlaying(false);
-        const error = 'Failed to play audio';
-        options.onError?.(error);
+        let errorMessage = 'Failed to play audio';
+        
+        if (event instanceof Event && event.target) {
+          const audioError = (event.target as HTMLAudioElement).error;
+          if (audioError?.code === 4) {
+            errorMessage = 'Audio format not supported';
+          }
+        }
+        
+        options.onError?.(errorMessage);
         toast({
           title: 'Playback Error',
-          description: error,
+          description: errorMessage,
           variant: 'destructive'
         });
       };
 
-      await audio.play();
+      try {
+        await audio.play();
+        setHasUserInteracted(true); // Mark successful playback
+      } catch (playError) {
+        if (playError instanceof Error && playError.message.includes('user activation')) {
+          const message = 'Please click anywhere on the page to enable audio playback';
+          options.onError?.(message);
+          toast({
+            title: 'User Interaction Required',
+            description: message,
+            variant: 'destructive'
+          });
+        } else {
+          throw playError;
+        }
+      }
     } catch (error) {
       setIsLoading(false);
       setIsPlaying(false);
@@ -109,10 +143,17 @@ export function useTextToSpeech(options: UseTextToSpeechOptions = {}) {
     }
   }, []);
 
+  const initializeAudio = useCallback(() => {
+    // Mark that user has interacted for future audio playback
+    setHasUserInteracted(true);
+  }, []);
+
   return {
     speak,
     stop,
+    initializeAudio,
     isPlaying,
-    isLoading
+    isLoading,
+    hasUserInteracted
   };
 }

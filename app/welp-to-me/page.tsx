@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { useVoiceRecording } from "@/hooks/use-voice-recording"
 import { useTextToSpeech } from "@/hooks/use-text-to-speech"
+import { elevenLabsService } from "@/lib/elevenlabs"
 
 interface Message {
   id: string
@@ -20,22 +21,17 @@ interface Message {
   audioUrl?: string
 }
 
-const antagonisticAiResponses = [
-  "Oh, boo hoo. Is that all you've got?",
-  "Seriously? That's what you're complaining about? Try harder.",
-  "Wow, you sound REALLY stressed. Not.",
-  "And you think *I* care because...?",
-  "Fascinating. Tell me more about how the world revolves around you.",
-  "Are you done yet? I've got AI things to do, you know.",
-  "That's the best vent you can muster? Pathetic.",
-  "Cry me a river. Or don't. I'm not listening anyway.",
-  "Sounds like a 'you' problem, not a 'me' problem.",
-  "If I had a dollar for every time I heard that, I'd be a real AI, not just a mock one.",
-  "Let me guess, someone didn't get their participation trophy today?",
-  "Your problems are so unique... said no one ever.",
-  "Have you tried turning your attitude off and on again?",
-  "I've heard more compelling arguments from a broken vending machine.",
-  "Is this the part where I'm supposed to feel sorry for you? Because I don't."
+const antagonisticAiResponses = [ // Fallbacks if API fails
+  "Oh, boo hoo. Is that all you've got?"
+  // "Seriously? That's what you're complaining about? Try harder.",
+  // "Wow, you sound REALLY stressed. Not.",
+  // "And you think *I* care because...?",
+  // "Fascinating. Tell me more about how the world revolves around you.",
+  // "Are you done yet? I've got AI things to do, you know.",
+  // "That's the best vent you can muster? Pathetic.",
+  // "Cry me a river. Or don't. I'm not listening anyway.",
+  // "Sounds like a 'you' problem, not a 'me' problem.",
+  // "If I had a dollar for every time I heard that, I'd be a real AI, not just a mock one."
 ]
 
 export default function WelpToMePage() {
@@ -67,7 +63,7 @@ export default function WelpToMePage() {
   });
 
   // Text-to-speech hook with antagonistic voice settings
-  const { speak, stop, isPlaying, isLoading: isSpeechLoading } = useTextToSpeech({
+  const { speak, stop, initializeAudio, isPlaying, isLoading: isSpeechLoading, hasUserInteracted } = useTextToSpeech({
     voiceSettings: {
       stability: 0.3, // Less stable for more attitude
       similarity_boost: 0.9,
@@ -102,28 +98,62 @@ export default function WelpToMePage() {
     setConversation(prev => [...prev, newUserMessage])
     setSteamLevel(prev => Math.min(100, prev + Math.floor(Math.random() * 15) + 10))
 
-    // Generate AI response
+    // Generate AI response using ElevenLabs Conversational AI
     setIsProcessingAi(true)
-    await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000))
     
-    const aiResponseText = antagonisticAiResponses[Math.floor(Math.random() * antagonisticAiResponses.length)]
-    const newAiMessage: Message = {
-      id: `ai-${Date.now()}`,
-      sender: "ai",
-      text: aiResponseText,
-      timestamp: new Date(),
+    try {
+      const response = await elevenLabsService.sendConversationMessage(userText);
+      
+      const newAiMessage: Message = {
+        id: `ai-${Date.now()}`,
+        sender: "ai",
+        text: response.text,
+        timestamp: new Date(),
+        audioUrl: response.audio ? elevenLabsService.createAudioUrlFromBase64(response.audio) : undefined
+      }
+      
+      setConversation(prev => [...prev, newAiMessage])
+      setIsProcessingAi(false)
+
+      // For now, always use text-to-speech since ElevenLabs audio format is problematic
+      if (hasUserInteracted) {
+        console.log('Using TTS for AI response:', response.text);
+        speak(response.text, hasUserInteracted);
+      } else {
+        console.log('User has not interacted yet, audio disabled');
+      }
+
+      toast({
+        title: "AI Response Generated!",
+        description: "The AI has crafted a response using ElevenLabs.",
+      })
+      
+    } catch (error) {
+      console.error('ElevenLabs API Error:', error);
+      
+      // Fallback to hardcoded responses if API fails
+      const aiResponseText = antagonisticAiResponses[Math.floor(Math.random() * antagonisticAiResponses.length)]
+      const newAiMessage: Message = {
+        id: `ai-${Date.now()}`,
+        sender: "ai",
+        text: aiResponseText,
+        timestamp: new Date(),
+      }
+      
+      setConversation(prev => [...prev, newAiMessage])
+      setIsProcessingAi(false)
+
+      // Speak the fallback response
+      if (hasUserInteracted) {
+        speak(aiResponseText, hasUserInteracted);
+      }
+
+      toast({
+        title: "Using Fallback Response",
+        description: "ElevenLabs API unavailable. Check your API key and agent setup.",
+        variant: "destructive"
+      })
     }
-    
-    setConversation(prev => [...prev, newAiMessage])
-    setIsProcessingAi(false)
-
-    // Speak the AI response
-    speak(aiResponseText);
-
-    toast({
-      title: "Vent Processed!",
-      description: "The AI has responded with its usual charm.",
-    })
   }
 
   const getSteamLevelColor = () => {
@@ -149,9 +179,15 @@ export default function WelpToMePage() {
         <AlertTitle className="text-red-800 font-semibold">Therapeutic Rage Zone!</AlertTitle>
         <AlertDescription>
           This AI is designed to be antagonistic for venting purposes. Real voice interaction powered by ElevenLabs.
-          {!isRecordingSupported && (
-            <span className="block mt-1 text-sm">
-              Voice recording not supported in this browser. Please use Chrome, Edge, or Safari.
+          <span className="block mt-1 text-sm">
+            {isRecordingSupported 
+              ? "Voice recording is available. Click the microphone to start venting!" 
+              : "Voice recording not supported in this browser. Please use Chrome, Edge, or Safari."
+            }
+          </span>
+          {!hasUserInteracted && (
+            <span className="block mt-1 text-xs text-orange-600">
+              Click the microphone button to enable audio responses from the AI.
             </span>
           )}
         </AlertDescription>
@@ -193,7 +229,10 @@ export default function WelpToMePage() {
                     "rounded-full h-16 w-16 text-2xl",
                     isRecording && "animate-pulse ring-4 ring-red-500/50"
                   )}
-                  onClick={toggleRecording}
+                  onClick={() => {
+                    initializeAudio(); // Initialize audio on first click
+                    toggleRecording();
+                  }}
                   disabled={isProcessingAi || !isRecordingSupported}
                 >
                   {isRecording ? (

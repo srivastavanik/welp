@@ -1,6 +1,7 @@
 interface SpeechRecognitionResult {
   transcript: string;
   confidence: number;
+  isFinal: boolean;
 }
 
 interface SpeechRecognitionOptions {
@@ -13,6 +14,7 @@ interface SpeechRecognitionOptions {
 export class SpeechRecognitionService {
   private recognition: any;
   private isSupported: boolean;
+  private currentTranscript: string = '';
 
   constructor() {
     this.isSupported = typeof window !== 'undefined' && 
@@ -38,22 +40,51 @@ export class SpeechRecognitionService {
     }
 
     return new Promise((resolve, reject) => {
-      this.recognition.continuous = options.continuous ?? false;
+      this.recognition.continuous = options.continuous ?? true;
       this.recognition.interimResults = options.interimResults ?? true;
       this.recognition.lang = options.language ?? 'en-US';
       this.recognition.maxAlternatives = options.maxAlternatives ?? 1;
 
       this.recognition.onstart = () => {
+        this.currentTranscript = '';
         resolve();
       };
 
-      this.recognition.onresult = (event: any) => {
-        const result = event.results[event.results.length - 1];
-        const transcript = result[0].transcript;
-        const confidence = result[0].confidence;
-        
-        onResult({ transcript, confidence });
-      };
+              this.recognition.onresult = (event: any) => {
+          let interimTranscript = '';
+          let finalTranscript = '';
+
+          // Process all results since last onresult event
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const result = event.results[i];
+            if (result.isFinal) {
+              finalTranscript += result[0].transcript;
+              this.currentTranscript += ' ' + result[0].transcript;
+            } else {
+              interimTranscript += result[0].transcript;
+            }
+          }
+
+          // For live updates, show both accumulated final transcript and current interim
+          const currentText = (this.currentTranscript + ' ' + interimTranscript).trim();
+          if (currentText) {
+            onResult({
+              transcript: currentText,
+              confidence: 1,
+              isFinal: false
+            });
+          }
+
+          // When we have a final piece, send it separately
+          if (finalTranscript) {
+            this.currentTranscript = this.currentTranscript.trim();
+            onResult({
+              transcript: this.currentTranscript,
+              confidence: 1,
+              isFinal: true
+            });
+          }
+        };
 
       this.recognition.onerror = (event: any) => {
         onError(event.error);
@@ -61,7 +92,18 @@ export class SpeechRecognitionService {
       };
 
       this.recognition.onend = () => {
-        // Recognition ended
+        // Send final transcript when recognition ends
+        if (this.currentTranscript) {
+          onResult({
+            transcript: this.currentTranscript.trim(),
+            confidence: 1,
+            isFinal: true
+          });
+        }
+        // Restart if continuous mode is enabled
+        if (options.continuous) {
+          this.recognition.start();
+        }
       };
 
       this.recognition.start();

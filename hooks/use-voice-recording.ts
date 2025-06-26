@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { speechRecognitionService } from '@/lib/speech-recognition';
 import { useToast } from '@/hooks/use-toast';
 
@@ -12,9 +12,14 @@ interface UseVoiceRecordingOptions {
 export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
   const [isRecording, setIsRecording] = useState(false);
   const [transcript, setTranscript] = useState('');
-  const [isSupported] = useState(speechRecognitionService.isAvailable());
+  const [isSupported, setIsSupported] = useState(false);
   const { toast } = useToast();
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    // Only run on client side to avoid hydration mismatch
+    setIsSupported(speechRecognitionService.isAvailable());
+  }, []);
 
   const startRecording = useCallback(async () => {
     if (!isSupported) {
@@ -34,24 +39,23 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
 
       await speechRecognitionService.startRecording(
         {
-          continuous: options.continuous ?? false,
+          continuous: options.continuous ?? true,
           interimResults: true,
           language: options.language ?? 'en-US'
         },
-        (result) => {
-          setTranscript(result.transcript);
-          options.onTranscript?.(result.transcript);
-          
-          // Auto-stop after 10 seconds of silence for non-continuous mode
-          if (!options.continuous) {
-            if (timeoutRef.current) {
-              clearTimeout(timeoutRef.current);
+                  (result) => {
+            // Always update the transcript for live display
+            setTranscript(result.transcript);
+            
+            // Only call onTranscript with final results
+            if (result.isFinal) {
+              if (options.onTranscript) {
+                options.onTranscript(result.transcript);
+              }
+              // Clear the live transcript after saving
+              setTranscript('');
             }
-            timeoutRef.current = setTimeout(() => {
-              stopRecording();
-            }, 10000);
-          }
-        },
+          },
         (error) => {
           setIsRecording(false);
           options.onError?.(error);
@@ -80,6 +84,7 @@ export function useVoiceRecording(options: UseVoiceRecordingOptions = {}) {
     }
     speechRecognitionService.stopRecording();
     setIsRecording(false);
+    setTranscript('');
   }, []);
 
   const toggleRecording = useCallback(() => {
