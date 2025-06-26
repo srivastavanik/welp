@@ -119,7 +119,7 @@ export default function WelpToMePage() {
         <AlertTitle className="text-red-800 font-semibold">Therapeutic Rage Zone!</AlertTitle>
         <AlertDescription>
           This is a mock feature for venting. The AI is designed to be antagonistic. This is NOT real therapy or advice.
-          Responses are pre-programmed and for entertainment only.
+          
         </AlertDescription>
       </Alert>
 
