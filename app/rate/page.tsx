@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -26,7 +26,7 @@ import { StarRatingInput } from "@/components/custom/star-rating"
 import { useToast } from "@/hooks/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
-export default function RateCustomerPage() {
+function RateCustomerContent() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const [customerPhoneNumber, setCustomerPhoneNumber] = useState("")
@@ -264,5 +264,29 @@ function RatingInputSection({ title, icon: Icon, value, onChange }: RatingInputS
       </Label>
       <StarRatingInput value={value} onChange={onChange} size={32} />
     </div>
+  )
+}
+
+function RateCustomerLoading() {
+  return (
+    <>
+      <PageHeader
+        title="Rate a Customer"
+        description="Share your experience to help other businesses."
+        icon={StarIconLucide}
+      />
+      <div className="space-y-6">
+        <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />
+        <div className="h-96 bg-gray-100 rounded-lg animate-pulse" />
+      </div>
+    </>
+  )
+}
+
+export default function RateCustomerPage() {
+  return (
+    <Suspense fallback={<RateCustomerLoading />}>
+      <RateCustomerContent />
+    </Suspense>
   )
 }
