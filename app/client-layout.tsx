@@ -55,9 +55,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           <div className="grid min-h-screen w-full md:grid-cols-[240px_1fr] lg:grid-cols-[280px_1fr]">
             <div className="hidden border-r border-border-subtle bg-muted/40 md:block">
               <div className="flex h-full max-h-screen flex-col gap-2">
-                <div className="flex h-16 items-center border-b border-border-subtle px-4 lg:px-6">
+                <div className="flex h-16 items-center justify-center border-b border-border-subtle px-4 lg:px-6">
                   <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-                    <Image src="/welp-logo.png" alt="Welp Logo" width={80} height={26.67} />
+                    <Image src="/logo-transparent.png" alt="Welp Logo" width={48} height={48} />
                   </Link>
                 </div>
                 <div className="flex-1 py-4">
@@ -73,6 +73,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
                   <Card className="border-border-subtle">
                     <CardHeader className="p-3 pt-0 md:p-4">
                       <CardTitle className="text-base">Upgrade to Premium</CardTitle>
+
                       <CardDescription className="text-xs">
                         Unlock all features and get unlimited access.
                       </CardDescription>
@@ -95,15 +96,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
               <header className="flex h-16 items-center gap-4 border-b border-border-subtle bg-bg-page px-4 lg:px-6">
                 <Sheet>
                   <SheetTrigger asChild>
-                    <Button variant="outline" size="icon" className="shrink-0 md:hidden">
+                    <Button variant="outline" size="icon" className="shrink-0 md:hidden bg-transparent">
                       <Menu className="h-5 w-5" />
                       <span className="sr-only">Toggle navigation menu</span>
                     </Button>
                   </SheetTrigger>
                   <SheetContent side="left" className="flex flex-col bg-bg-page p-0">
-                    <div className="flex h-16 items-center border-b border-border-subtle px-4">
+                    <div className="flex h-16 items-center justify-center border-b border-border-subtle px-4">
                       <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
-                        <Image src="/welp-logo.png" alt="Welp Logo" width={100} height={33.33} />
+                        <Image src="/logo-transparent.png" alt="Welp Logo" width={48} height={48} />
                       </Link>
                     </div>
                     <nav className="grid gap-2 p-4 text-lg font-medium">

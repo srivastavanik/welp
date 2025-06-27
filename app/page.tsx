@@ -1,6 +1,15 @@
-import { redirect } from "next/navigation"
+"use client"
+
+import { useRouter } from "next/navigation"
+import SplashScreen from "./splash-screen"
 
 export default function RootPage() {
-  // Go directly to the main app dashboard.
-  redirect("/dashboard")
+  const router = useRouter()
+
+  const handleStart = () => {
+    // On animation complete, navigate to the dashboard
+    router.push("/dashboard")
+  }
+
+  return <SplashScreen onStart={handleStart} />
 }
