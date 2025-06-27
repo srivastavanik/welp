@@ -1,17 +1,14 @@
 "use client"
+
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Mic, StopCircle, MessageSquareWarning, Bot, User, Loader2, Zap, Brain, Volume2, VolumeX } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { MessageSquareWarning, Info } from "lucide-react"
 import { PageHeader } from "@/components/custom/page-header"
 import { useToast } from "@/hooks/use-toast"
-import { ScrollArea } from "@/components/ui/scroll-area"
-import { Progress } from "@/components/ui/progress"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
-import { useVoiceRecording } from "@/hooks/use-voice-recording"
-import { useTextToSpeech } from "@/hooks/use-text-to-speech"
-import { elevenLabsService } from "@/lib/elevenlabs"
+import Script from "next/script"
 
 interface Message {
   id: string
@@ -21,149 +18,78 @@ interface Message {
   audioUrl?: string
 }
 
-const antagonisticAiResponses = [ // Fallbacks if API fails
-  "Oh, boo hoo. Is that all you've got?"
-  // "Seriously? That's what you're complaining about? Try harder.",
-  // "Wow, you sound REALLY stressed. Not.",
-  // "And you think *I* care because...?",
-  // "Fascinating. Tell me more about how the world revolves around you.",
-  // "Are you done yet? I've got AI things to do, you know.",
-  // "That's the best vent you can muster? Pathetic.",
-  // "Cry me a river. Or don't. I'm not listening anyway.",
-  // "Sounds like a 'you' problem, not a 'me' problem.",
-  // "If I had a dollar for every time I heard that, I'd be a real AI, not just a mock one."
-]
-
 export default function WelpToMePage() {
   const { toast } = useToast()
-  const [conversation, setConversation] = useState<Message[]>([])
-  const [steamLevel, setSteamLevel] = useState(0) // 0-100
-  const [isProcessingAi, setIsProcessingAi] = useState(false)
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
-
-  // Voice recording hook
-  const {
-    isRecording,
-    transcript,
-    isSupported: isRecordingSupported,
-    toggleRecording
-  } = useVoiceRecording({
-    onTranscript: (finalTranscript) => {
-      if (finalTranscript.trim()) {
-        handleUserVent(finalTranscript);
-      }
-    },
-    onError: (error) => {
-      toast({
-        title: "Recording Error",
-        description: error,
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Text-to-speech hook with antagonistic voice settings
-  const { speak, stop, initializeAudio, isPlaying, isLoading: isSpeechLoading, hasUserInteracted } = useTextToSpeech({
-    voiceSettings: {
-      stability: 0.3, // Less stable for more attitude
-      similarity_boost: 0.9,
-      style: 0.8, // More stylized/expressive
-      use_speaker_boost: true
-    },
-    onError: (error) => {
-      console.error('TTS Error:', error);
-    }
-  });
+  const [steamLevel, setSteamLevel] = useState(0)
+  const [widgetLoaded, setWidgetLoaded] = useState(false)
+  const widgetRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    // Scroll to bottom of conversation
-    if (scrollAreaRef.current) {
-      const scrollViewport = scrollAreaRef.current.querySelector("div[data-radix-scroll-area-viewport]")
-      if (scrollViewport) {
-        scrollViewport.scrollTop = scrollViewport.scrollHeight
-      }
+    // Simulate steam level increasing when widget is used
+    const interval = setInterval(() => {
+      setSteamLevel(prev => Math.min(100, prev + Math.floor(Math.random() * 5) + 1))
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    // Try to initialize widget after script loads
+    if (widgetLoaded && widgetRef.current) {
+      console.log('Widget container ready, checking for ElevenLabs script...');
+      
+      // Clear any loading content and insert widget
+      setTimeout(() => {
+        if (widgetRef.current) {
+          // Clear the container completely
+          widgetRef.current.innerHTML = '';
+          
+          // Create the widget element
+          const widgetElement = document.createElement('elevenlabs-convai');
+          widgetElement.setAttribute('agent-id', 'agent_01jyna847zegqv6rr8pvkfhve4');
+          widgetElement.style.cssText = 'width: 100%; height: 100%; position: absolute; top: 0; left: 0; border-radius: 8px;';
+          
+          // Append to container
+          widgetRef.current.appendChild(widgetElement);
+          console.log('Widget element created and inserted');
+          
+          // Also add global styles for the widget
+          const styleElement = document.createElement('style');
+          styleElement.textContent = `
+            elevenlabs-convai {
+              width: 100% !important;
+              height: 100% !important;
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              border-radius: 8px !important;
+            }
+            elevenlabs-convai iframe {
+              width: 100% !important;
+              height: 100% !important;
+              border-radius: 8px !important;
+              border: none !important;
+            }
+          `;
+          document.head.appendChild(styleElement);
+        }
+      }, 1000);
     }
-  }, [conversation])
+  }, [widgetLoaded])
 
-  const handleUserVent = async (userText: string) => {
-    if (!userText.trim()) return;
-
-    // Add user message
-    const newUserMessage: Message = {
-      id: `user-${Date.now()}`,
-      sender: "user",
-      text: userText,
-      timestamp: new Date(),
-    }
-    setConversation(prev => [...prev, newUserMessage])
-    setSteamLevel(prev => Math.min(100, prev + Math.floor(Math.random() * 15) + 10))
-
-    // Generate AI response using ElevenLabs Conversational AI
-    setIsProcessingAi(true)
-    
-    try {
-      const response = await elevenLabsService.sendConversationMessage(userText);
-      
-      const newAiMessage: Message = {
-        id: `ai-${Date.now()}`,
-        sender: "ai",
-        text: response.text,
-        timestamp: new Date(),
-        audioUrl: response.audio ? elevenLabsService.createAudioUrlFromBase64(response.audio) : undefined
-      }
-      
-      setConversation(prev => [...prev, newAiMessage])
-      setIsProcessingAi(false)
-
-      // For now, always use text-to-speech since ElevenLabs audio format is problematic
-      if (hasUserInteracted) {
-        console.log('Using TTS for AI response:', response.text);
-        speak(response.text, hasUserInteracted);
-      } else {
-        console.log('User has not interacted yet, audio disabled');
-      }
-
-      toast({
-        title: "AI Response Generated!",
-        description: "The AI has crafted a response using ElevenLabs.",
-      })
-      
-    } catch (error) {
-      console.error('ElevenLabs API Error:', error);
-      
-      // Fallback to hardcoded responses if API fails
-      const aiResponseText = antagonisticAiResponses[Math.floor(Math.random() * antagonisticAiResponses.length)]
-      const newAiMessage: Message = {
-        id: `ai-${Date.now()}`,
-        sender: "ai",
-        text: aiResponseText,
-        timestamp: new Date(),
-      }
-      
-      setConversation(prev => [...prev, newAiMessage])
-      setIsProcessingAi(false)
-
-      // Speak the fallback response
-      if (hasUserInteracted) {
-        speak(aiResponseText, hasUserInteracted);
-      }
-
-      toast({
-        title: "Using Fallback Response",
-        description: "ElevenLabs API unavailable. Check your API key and agent setup.",
-        variant: "destructive"
-      })
-    }
+  const handleWidgetError = () => {
+    console.error('Widget failed to load or initialize');
+    toast({
+      title: "Widget Issue",
+      description: "Try refreshing the page or check your microphone permissions.",
+      variant: "destructive"
+    });
   }
 
   const getSteamLevelColor = () => {
     if (steamLevel > 75) return "bg-red-600"
     if (steamLevel > 40) return "bg-orange-500"
     return "bg-yellow-400"
-  }
-
-  const handleStopAudio = () => {
-    stop();
   }
 
   return (
@@ -174,192 +100,132 @@ export default function WelpToMePage() {
         icon={MessageSquareWarning}
       />
 
-      <Alert variant="destructive" className="mb-6 bg-red-50 border-red-200 text-red-700">
-        <Zap className="h-5 w-5 text-red-600" />
+      <Alert variant="destructive" className="mb-6 bg-red-50 border-red-200 text-red-700 max-w-3xl mx-auto">
+        <Info className="h-5 w-5 text-red-600" />
         <AlertTitle className="text-red-800 font-semibold">Therapeutic Rage Zone!</AlertTitle>
         <AlertDescription>
-          This AI is designed to be antagonistic for venting purposes. Real voice interaction powered by ElevenLabs.
-          <span className="block mt-1 text-sm">
-            {isRecordingSupported 
-              ? "Voice recording is available. Click the microphone to start venting!" 
-              : "Voice recording not supported in this browser. Please use Chrome, Edge, or Safari."
-            }
-          </span>
-          {!hasUserInteracted && (
-            <span className="block mt-1 text-xs text-orange-600">
-              Click the microphone button to enable audio responses from the AI.
-            </span>
-          )}
+          This is a mock feature for venting. The AI is designed to be antagonistic and for entertainment only.
         </AlertDescription>
       </Alert>
 
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2">
           <Card className="shadow-lg border-border-subtle">
-            <CardHeader className="flex flex-row justify-between items-center">
-              <div>
-                <CardTitle className="text-text-primary">Your Venting Session</CardTitle>
-                <CardDescription className="text-text-secondary">
-                  {isRecording ? "Listening to your grievances..." : 
-                   isProcessingAi ? "AI is crafting a witty retort..." :
-                   "Press the mic to start venting."}
-                </CardDescription>
-              </div>
-              <div className="flex gap-2">
-                {(isPlaying || isSpeechLoading) && (
-                  <Button
-                    size="icon"
-                    variant="outline"
-                    className="rounded-full h-12 w-12"
-                    onClick={handleStopAudio}
-                    disabled={isSpeechLoading}
-                  >
-                    {isSpeechLoading ? (
-                      <Loader2 className="h-6 w-6 animate-spin" />
-                    ) : (
-                      <VolumeX className="h-6 w-6" />
-                    )}
-                    <span className="sr-only">Stop Audio</span>
-                  </Button>
-                )}
-                <Button
-                  size="icon"
-                  variant={isRecording ? "destructive" : "outline"}
-                  className={cn(
-                    "rounded-full h-16 w-16 text-2xl",
-                    isRecording && "animate-pulse ring-4 ring-red-500/50"
-                  )}
-                  onClick={() => {
-                    initializeAudio(); // Initialize audio on first click
-                    toggleRecording();
-                  }}
-                  disabled={isProcessingAi || !isRecordingSupported}
-                >
-                  {isRecording ? (
-                    <StopCircle className="h-8 w-8" />
-                  ) : (
-                    <Mic className="h-8 w-8" />
-                  )}
-                  <span className="sr-only">{isRecording ? "Stop Venting" : "Start Venting"}</span>
-                </Button>
-              </div>
+            <CardHeader>
+              <CardTitle className="text-text-primary">Your Venting Session</CardTitle>
+              <CardDescription className="text-text-secondary">
+                Click the microphone below to start venting to our AI companion.
+              </CardDescription>
             </CardHeader>
-            <CardContent>
-              {transcript && isRecording && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-sm text-blue-800">
-                    <strong>Listening:</strong> {transcript}
-                  </p>
+            <CardContent className="p-6">
+              {/* ElevenLabs Conversational AI Widget */}
+              <div className="w-full">
+                <div 
+                  ref={widgetRef}
+                  className="w-full h-[450px] border-2 border-dashed border-gray-300 rounded-lg relative overflow-hidden"
+                >
+                  {!widgetLoaded ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-red mx-auto mb-4"></div>
+                        <p className="text-lg text-text-secondary">Loading AI companion...</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center p-8">
+                        <p className="text-base text-text-secondary mb-4">
+                          If the widget doesn't appear, try:
+                        </p>
+                        <ul className="text-sm text-text-secondary space-y-2">
+                          <li>• Refreshing the page</li>
+                          <li>• Allowing microphone permissions</li>
+                          <li>• Using Chrome or Safari</li>
+                          <li>• Checking your internet connection</li>
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              <p className="text-sm text-text-secondary mt-4 text-center max-w-md">
+                Your AI therapist is ready to listen to your complaints with... limited patience and maximum sarcasm.
+              </p>
+              
+              {widgetLoaded && (
+                <div className="mt-4 text-center">
+                  <button 
+                    onClick={() => window.location.reload()} 
+                    className="text-xs text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Widget not working? Click here to refresh
+                  </button>
                 </div>
               )}
-              
-              <ScrollArea
-                className="h-[400px] w-full rounded-md border border-border-subtle p-4 bg-bg-subtle"
-                ref={scrollAreaRef}
-              >
-                {conversation.length === 0 && (
-                  <div className="flex flex-col items-center justify-center h-full text-text-secondary">
-                    <Bot className="h-16 w-16 mb-4 text-text-secondary/50" />
-                    <p className="text-lg font-medium">The AI is waiting...</p>
-                    <p className="text-sm">Impatiently, of course.</p>
-                  </div>
-                )}
-                {conversation.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={cn(
-                      "mb-3 flex items-end gap-2 text-sm",
-                      msg.sender === "user" ? "justify-end" : "justify-start",
-                    )}
-                  >
-                    {msg.sender === "ai" && (
-                      <div className="flex flex-col items-center gap-1">
-                        <Bot className="h-6 w-6 text-brand-red shrink-0" />
-                        {isPlaying && (
-                          <Volume2 className="h-4 w-4 text-brand-red animate-pulse" />
-                        )}
-                      </div>
-                    )}
-                    <div
-                      className={cn(
-                        "max-w-[75%] rounded-lg px-3 py-2 shadow",
-                        msg.sender === "user"
-                          ? "bg-blue-500 text-white rounded-br-none"
-                          : "bg-muted text-text-primary rounded-bl-none border border-border-subtle",
-                      )}
-                    >
-                      <p className="whitespace-pre-wrap">{msg.text}</p>
-                      <p className="text-xs opacity-70 mt-1 text-right">
-                        {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </p>
-                    </div>
-                    {msg.sender === "user" && <User className="h-6 w-6 text-blue-500 shrink-0" />}
-                  </div>
-                ))}
-                {isProcessingAi && (
-                  <div className="flex items-center justify-start gap-2 text-sm mb-3">
-                    <Bot className="h-6 w-6 text-brand-red shrink-0" />
-                    <div className="bg-muted text-text-primary rounded-lg px-3 py-2 shadow rounded-bl-none border border-border-subtle">
-                      <Loader2 className="h-4 w-4 animate-spin inline-block mr-2" />
-                      AI is 'thinking' up a witty retort...
-                    </div>
-                  </div>
-                )}
-              </ScrollArea>
             </CardContent>
           </Card>
         </div>
 
         <div className="space-y-6">
-          <Card className="shadow-md border-border-subtle">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-text-primary flex items-center gap-2">
-                <Zap className="h-5 w-5 text-orange-500" />
-                Steam Level
-              </CardTitle>
-              <CardDescription className="text-text-secondary">How much have you blown off?</CardDescription>
+              <CardTitle className="text-center">Steam Level</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Progress
-                value={steamLevel}
-                className="w-full h-4 [&>*]:bg-gradient-to-r [&>*]:from-yellow-400 [&>*]:via-orange-500 [&>*]:to-red-600"
-              />
-              <p className="text-center text-sm mt-2 font-medium text-text-secondary">
-                {steamLevel}% <span className="font-normal">vented</span>
+            <CardContent className="text-center">
+              <div className="relative h-32 w-8 mx-auto bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={cn(
+                    "absolute bottom-0 w-full transition-all duration-1000 ease-out",
+                    getSteamLevelColor()
+                  )}
+                  style={{ height: `${steamLevel}%` }}
+                />
+              </div>
+              <p className="mt-2 text-lg font-semibold">{steamLevel}%</p>
+              <p className="text-sm text-text-secondary">
+                {steamLevel > 75 ? "Volcanic!" : steamLevel > 40 ? "Getting hot!" : "Cool as a cucumber"}
               </p>
-              {steamLevel > 80 && (
-                <p className="text-center text-xs mt-1 text-red-600 font-semibold">Maximum Rage Achieved!</p>
-              )}
             </CardContent>
           </Card>
 
-          <Card className="shadow-md border-border-subtle bg-brand-red/5">
+          <Card>
             <CardHeader>
-              <CardTitle className="text-text-primary flex items-center gap-2">
-                <Brain className="h-5 w-5 text-brand-red" />
-                AI Personality
-              </CardTitle>
+              <CardTitle className="text-center">How to Use</CardTitle>
             </CardHeader>
-            <CardContent className="text-sm text-text-secondary space-y-1">
-              <p>
-                <strong className="text-brand-red">Name:</strong> Venty McVentface (VMV-3000)
+            <CardContent className="text-center space-y-2">
+              <p className="text-sm text-text-secondary">
+                1. Click the microphone in the widget
               </p>
-              <p>
-                <strong className="text-brand-red">Voice:</strong> ElevenLabs Powered
+              <p className="text-sm text-text-secondary">
+                2. Start venting about your day
               </p>
-              <p>
-                <strong className="text-brand-red">Directive:</strong> Mildly Infuriate & Provoke.
+              <p className="text-sm text-text-secondary">
+                3. Listen to our AI's... "helpful" response
               </p>
-              <p>
-                <strong className="text-brand-red">Empathy Chip:</strong> Not installed (budget cuts).
-              </p>
-              <p>
-                <strong className="text-brand-red">Specialty:</strong> Sarcasm, eye-rolling (simulated).
+              <p className="text-sm text-text-secondary">
+                4. Repeat as needed for therapeutic purposes
               </p>
             </CardContent>
           </Card>
         </div>
       </div>
+
+      {/* Load the ElevenLabs widget script */}
+      <Script 
+        src="https://unpkg.com/@elevenlabs/convai-widget-embed" 
+        strategy="afterInteractive"
+        onLoad={() => {
+          console.log('ElevenLabs widget loaded successfully');
+          toast({
+            title: "AI Companion Ready!",
+            description: "Your antagonistic AI therapist is ready to listen.",
+            variant: "default"
+          });
+          setWidgetLoaded(true)
+        }}
+        onError={handleWidgetError}
+      />
     </>
   )
 }

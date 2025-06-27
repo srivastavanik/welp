@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,18 +20,15 @@ import {
   Trash2,
   Loader2,
   Info,
-  StopCircle,
-  Volume2,
-  VolumeX,
 } from "lucide-react"
 import { PageHeader } from "@/components/custom/page-header"
 import { StarRatingInput } from "@/components/custom/star-rating"
 import { useToast } from "@/hooks/use-toast"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useVoiceRecording } from "@/hooks/use-voice-recording"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 
-function RateCustomerContent() {
+export default function RateCustomerPage() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const [customerPhoneNumber, setCustomerPhoneNumber] = useState("")
@@ -41,6 +38,7 @@ function RateCustomerContent() {
   const [maintenanceRating, setMaintenanceRating] = useState(0)
   const [comment, setComment] = useState("")
   const [reviewerRole, setReviewerRole] = useState("")
+  const [voiceRecordingUrl, setVoiceRecordingUrl] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
 
   // Voice recording hook
@@ -82,6 +80,25 @@ function RateCustomerContent() {
     }
   }, [searchParams])
 
+  const handleVoiceRecord = async () => {
+    toggleRecording()
+    if (isRecording) {
+      setVoiceRecordingUrl("mock_audio_url.mp3") // Mock URL
+      toast({
+        title: "Voice Note Added",
+        description: "Voice recording stopped and will be transcribed.",
+        className: "bg-blue-500 text-white",
+      })
+    } else {
+      setVoiceRecordingUrl(null)
+      toast({
+        title: "Recording Started...",
+        description: "Click mic again to stop recording.",
+        className: "bg-blue-500 text-white",
+      })
+    }
+  }
+
   const handleSubmitReview = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (
@@ -116,6 +133,7 @@ function RateCustomerContent() {
     setMaintenanceRating(0)
     setComment("")
     setReviewerRole("")
+    setVoiceRecordingUrl(null)
   }
 
   return (
@@ -129,13 +147,7 @@ function RateCustomerContent() {
         <Info className="h-5 w-5 text-blue-600" />
         <AlertTitle className="text-blue-800">Be Fair & Objective</AlertTitle>
         <AlertDescription>
-          Your ratings contribute to a trusted community. Use voice reviews for detailed feedback.
-          <span className="block mt-1 text-sm text-orange-600">
-            {isRecordingSupported 
-              ? "Voice recording is available for detailed feedback." 
-              : "Voice recording not supported in this browser. Please use Chrome, Edge, or Safari."
-            }
-          </span>
+          Your ratings contribute to a trusted community. Please provide honest and constructive feedback.
         </AlertDescription>
       </Alert>
       <Card className="border-border-subtle shadow-sm">
@@ -218,7 +230,7 @@ function RateCustomerContent() {
                 placeholder="Share details about your experience... (e.g., specific incidents, positive interactions)"
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
-                rows={6}
+                rows={4}
                 className="text-base"
               />
             </div>
@@ -246,47 +258,31 @@ function RateCustomerContent() {
                 <Button
                   type="button"
                   variant={isRecording ? "destructive" : "outline"}
-                  onClick={toggleRecording}
-                  className={cn(
-                    "gap-2 h-11",
-                    isRecording && "animate-pulse ring-4 ring-red-500/50"
-                  )}
-                  disabled={!isRecordingSupported}
+                  onClick={handleVoiceRecord}
+                  className="gap-2 h-11"
                 >
-                  {isRecording ? (
-                    <>
-                      <StopCircle className="h-5 w-5" />
-                      Stop Recording
-                    </>
-                  ) : (
-                    <>
-                      <Mic className="h-5 w-5" />
-                      Record Voice Review
-                    </>
-                  )}
+                  <Mic className="h-5 w-5" /> {isRecording ? "Stop Recording" : "Record Voice Note"}
                 </Button>
                 {isRecording && (
                   <div className="flex items-center gap-2 text-sm text-brand-red animate-pulse">
-                    <Volume2 className="h-4 w-4 animate-pulse" />
-                    Recording... Speak clearly about your experience.
+                    <Loader2 className="h-4 w-4 animate-spin" /> Recording...
+                  </div>
+                )}
+                {voiceRecordingUrl && !isRecording && (
+                  <div className="text-sm text-green-600 flex items-center gap-1">
+                    <Mic className="h-4 w-4" /> Voice note added.
                   </div>
                 )}
               </div>
               <p className="text-xs text-text-secondary/80">
-                Record a detailed voice review. It will be transcribed and added to your comments automatically.
-                <span className="block text-orange-600 mt-1">
-                  {isRecordingSupported 
-                    ? "Voice recording is ready. Click the button to start." 
-                    : "Voice recording requires a modern browser with microphone access."
-                  }
-                </span>
+                Quickly leave a voice review. We'll transcribe it (mock).
               </p>
             </div>
 
             <Button
               type="submit"
               className="w-full sm:w-auto bg-brand-red text-brand-red-foreground hover:bg-brand-red-hover active:bg-brand-red-active h-11 text-base"
-              disabled={isLoading || isRecording}
+              disabled={isLoading}
             >
               {isLoading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
               {isLoading ? "Submitting..." : "Submit Review"}
@@ -312,29 +308,5 @@ function RatingInputSection({ title, icon: Icon, value, onChange }: RatingInputS
       </Label>
       <StarRatingInput value={value} onChange={onChange} size={32} />
     </div>
-  )
-}
-
-function RateCustomerLoading() {
-  return (
-    <>
-      <PageHeader
-        title="Rate a Customer"
-        description="Share your experience to help other businesses."
-        icon={StarIconLucide}
-      />
-      <div className="space-y-6">
-        <div className="h-20 bg-gray-100 rounded-lg animate-pulse" />
-        <div className="h-96 bg-gray-100 rounded-lg animate-pulse" />
-      </div>
-    </>
-  )
-}
-
-export default function RateCustomerPage() {
-  return (
-    <Suspense fallback={<RateCustomerLoading />}>
-      <RateCustomerContent />
-    </Suspense>
   )
 }
