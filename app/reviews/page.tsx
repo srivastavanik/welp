@@ -4,7 +4,7 @@ import { useState } from "react"
 import { PageHeader } from "@/components/custom/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StarRatingDisplay } from "@/components/custom/star-rating"
-import { FileText, Edit3, Trash2, AlertTriangle, Share2, StarIcon as StarIconLucide, Mic } from "lucide-react"
+import { FileText, Edit3, Trash2, AlertTriangle, Share2, StarIcon as StarIconLucide, Mic, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
+import { redditService } from "@/lib/reddit"
 
 interface ReviewMock {
   id: string
@@ -35,6 +36,7 @@ interface ReviewMock {
   reviewerRole: string
   flagged?: boolean // If the review itself was flagged by Welp admin
   redditShared?: boolean
+  redditUrl?: string
   tags?: string[]
 }
 
@@ -52,6 +54,7 @@ const mockReviewsData: ReviewMock[] = [
     reviewer: "Sarah M.",
     reviewerRole: "Manager",
     redditShared: true,
+    redditUrl: "https://reddit.com/r/CustomerFromHell/comments/abc123/nightmare_customer_experience",
     tags: ["Rude", "Dispute", "High Maintenance", "Messy"],
   },
   {
@@ -80,6 +83,7 @@ const mockReviewsData: ReviewMock[] = [
     reviewer: "Mike B.",
     reviewerRole: "Server",
     redditShared: true,
+    redditUrl: "https://reddit.com/r/CustomerFromHeaven/comments/def456/amazing_customer_experience",
     tags: ["Generous Tipper", "Understanding", "Exceptional"],
   },
   {
@@ -100,6 +104,7 @@ const mockReviewsData: ReviewMock[] = [
 
 export default function MyReviewsPage() {
   const [reviews, setReviews] = useState<ReviewMock[]>(mockReviewsData)
+  const [loadingReddit, setLoadingReddit] = useState<string | null>(null)
   const { toast } = useToast()
 
   const handleDeleteReview = (reviewId: string) => {
@@ -112,14 +117,61 @@ export default function MyReviewsPage() {
     })
   }
 
-  const handleShareToReddit = (reviewId: string) => {
-    // Mock sharing
-    setReviews(reviews.map((r) => (r.id === reviewId ? { ...r, redditShared: true } : r)))
-    toast({
-      title: "Shared to Reddit!",
-      description: "This review has been (mock) shared to Reddit.",
-      className: "bg-orange-500 text-white",
-    })
+  const handleShareToReddit = async (reviewId: string) => {
+    const review = reviews.find(r => r.id === reviewId)
+    if (!review) return
+
+    setLoadingReddit(reviewId)
+
+    try {
+      // Generate Reddit post content
+      const postContent = redditService.generatePostContent({
+        customerDisplayId: review.customerDisplayId,
+        overallRating: review.overallRating,
+        comment: review.comment,
+        tags: review.tags,
+        reviewerRole: review.reviewerRole
+      })
+
+      // Use mock posting for now (until Reddit API is configured)
+      const result = await redditService.mockPostToReddit(postContent)
+
+      if (result.success) {
+        // Update review with Reddit info
+        setReviews(reviews.map((r) => 
+          r.id === reviewId 
+            ? { ...r, redditShared: true, redditUrl: result.url } 
+            : r
+        ))
+
+        toast({
+          title: "Posted to Reddit!",
+          description: `Successfully shared to r/${postContent.subreddit}`,
+          className: "bg-orange-500 text-white",
+          action: result.url ? (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => window.open(result.url, '_blank')}
+              className="bg-white text-orange-500 border-orange-300 hover:bg-orange-50"
+            >
+              View Post
+            </Button>
+          ) : undefined
+        })
+      } else {
+        throw new Error(result.error || 'Failed to post to Reddit')
+      }
+    } catch (error) {
+      console.error('Reddit posting error:', error)
+      toast({
+        title: "Reddit Post Failed",
+        description: error instanceof Error ? error.message : "Failed to post to Reddit. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoadingReddit(null)
+    }
   }
 
   return (
@@ -232,16 +284,45 @@ export default function MyReviewsPage() {
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
+                  
+                  {/* Reddit Share Button */}
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleShareToReddit(review.id)}
-                    disabled={review.redditShared || review.flagged}
-                    className={review.redditShared ? "text-green-600 border-green-500 hover:bg-green-50" : ""}
+                    disabled={review.redditShared || review.flagged || loadingReddit === review.id}
+                    className={cn(
+                      "transition-all duration-200",
+                      review.redditShared 
+                        ? "text-orange-600 border-orange-500 hover:bg-orange-50 bg-orange-50" 
+                        : "hover:border-orange-400 hover:text-orange-600"
+                    )}
                   >
-                    <Share2 className="mr-1.5 h-3.5 w-3.5" />{" "}
-                    {review.redditShared ? "Shared on Reddit" : "Share to Reddit"}
+                    {loadingReddit === review.id ? (
+                      <>
+                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        Posting...
+                      </>
+                    ) : (
+                      <>
+                        <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                        {review.redditShared ? "Posted to Reddit" : "Post to Reddit"}
+                      </>
+                    )}
                   </Button>
+
+                  {/* View Reddit Post Button */}
+                  {review.redditShared && review.redditUrl && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(review.redditUrl, '_blank')}
+                      className="text-orange-600 border-orange-300 hover:bg-orange-50"
+                    >
+                      <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                      View on Reddit
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -250,4 +331,8 @@ export default function MyReviewsPage() {
       )}
     </>
   )
+}
+
+function cn(...classes: (string | undefined | false)[]): string {
+  return classes.filter(Boolean).join(' ')
 }

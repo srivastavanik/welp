@@ -1,10 +1,31 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState } from 'react'
-import { useAuth } from '@/hooks/use-auth'
-import { db } from '@/lib/database'
-import type { AuthUser } from '@/lib/supabase-auth'
-import type { UserProfile, Business } from '@/lib/database'
+// import { useAuth } from '@/hooks/use-auth'
+// import { db } from '@/lib/database'
+// import type { AuthUser } from '@/lib/supabase-auth'
+// import type { UserProfile, Business } from '@/lib/database'
+
+// Mock types for now (until Supabase is enabled)
+interface AuthUser {
+  id: string;
+  email: string;
+}
+
+interface UserProfile {
+  id: string;
+  business_id: string;
+  display_name: string;
+  role: string;
+  subscription_tier: string;
+  lookups_remaining: number;
+}
+
+interface Business {
+  id: string;
+  name: string;
+  owner_id: string;
+}
 
 interface AuthContextType {
   user: AuthUser | null
@@ -20,6 +41,28 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  // Mock authentication for now
+  const [user, setUser] = useState<AuthUser | null>({
+    id: 'mock-user-id',
+    email: 'demo@welp.com'
+  })
+  const [userProfile, setUserProfile] = useState<UserProfile | null>({
+    id: 'mock-user-id',
+    business_id: 'mock-business-id',
+    display_name: 'Demo User',
+    role: 'owner',
+    subscription_tier: 'free',
+    lookups_remaining: 3
+  })
+  const [business, setBusiness] = useState<Business | null>({
+    id: 'mock-business-id',
+    name: 'Demo Restaurant',
+    owner_id: 'mock-user-id'
+  })
+  const [loading, setLoading] = useState(false)
+
+  // Commented out Supabase integration
+  /*
   const auth = useAuth()
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [business, setBusiness] = useState<Business | null>(null)
@@ -56,8 +99,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       loadUserData()
     }
   }, [auth.user, auth.loading])
+  */
 
   const signUp = async (email: string, password: string, businessName: string, displayName: string) => {
+    // Mock signup
+    console.log('Mock signup:', { email, businessName, displayName })
+    
+    /*
     const result = await auth.signUp(email, password)
     
     if (result.user) {
@@ -80,27 +128,38 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUserProfile(profile)
       setBusiness(business)
     }
+    */
   }
 
   const signIn = async (email: string, password: string) => {
+    // Mock signin
+    console.log('Mock signin:', { email })
+    
+    /*
     await auth.signIn(email, password)
+    */
   }
 
   const signOut = async () => {
+    // Mock signout
+    console.log('Mock signout')
+    
+    /*
     await auth.signOut()
     setUserProfile(null)
     setBusiness(null)
+    */
   }
 
   const value: AuthContextType = {
-    user: auth.user,
+    user,
     userProfile,
     business,
-    loading: auth.loading || loading,
+    loading,
     signUp,
     signIn,
     signOut,
-    isAuthenticated: auth.isAuthenticated
+    isAuthenticated: !!user
   }
 
   return (
