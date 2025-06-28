@@ -1,9 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Use placeholder values when environment variables are not set
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co'
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key'
 
-if (!supabaseUrl || !supabaseAnonKey) {
+// Only throw error in production or when actually trying to use Supabase
+const isSupabaseConfigured = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+if (!isSupabaseConfigured && process.env.NODE_ENV === 'production') {
   throw new Error('Missing Supabase environment variables. Please check your .env.local file.')
 }
 
@@ -14,6 +18,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true
   }
 })
+
+// Export a flag to check if Supabase is properly configured
+export const isSupabaseReady = isSupabaseConfigured
 
 // Database types will be generated here once you set up your schema
 export type Database = {
