@@ -20,6 +20,7 @@ import {
   Trash2,
   Loader2,
   Info,
+  UserCircle,
 } from "lucide-react"
 import { PageHeader } from "@/components/custom/page-header"
 import { StarRatingInput } from "@/components/custom/star-rating"
@@ -34,6 +35,7 @@ export default function RateCustomerPage() {
   const router = useRouter()
   const { toast } = useToast()
   const [customerPhoneNumber, setCustomerPhoneNumber] = useState("")
+  const [customerName, setCustomerName] = useState("")
   const [overallRating, setOverallRating] = useState(0)
   const [behaviorRating, setBehaviorRating] = useState(0)
   const [paymentRating, setPaymentRating] = useState(0)
@@ -135,9 +137,12 @@ export default function RateCustomerPage() {
     setIsLoading(true)
     await new Promise((resolve) => setTimeout(resolve, 1500))
     
+    // Use provided customer name or generate one from phone number
+    const displayName = customerName.trim() || generateDisplayId(cleanPhone)
+    
     // Create new review object
     const newReview = {
-      customerDisplayId: generateDisplayId(cleanPhone),
+      customerDisplayId: displayName,
       overallRating,
       behaviorRating,
       paymentRating,
@@ -162,6 +167,7 @@ export default function RateCustomerPage() {
 
     // Reset form
     setCustomerPhoneNumber("")
+    setCustomerName("")
     setOverallRating(0)
     setBehaviorRating(0)
     setPaymentRating(0)
@@ -238,7 +244,7 @@ export default function RateCustomerPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-1.5">
                 <Label htmlFor="customerPhoneNumber" className="flex items-center text-sm font-medium">
-                  <Phone className="mr-2 h-4 w-4 text-brand-red" /> Customer Phone Number
+                  <Phone className="mr-2 h-4 w-4 text-brand-red" /> Customer Phone Number *
                 </Label>
                 <Input
                   id="customerPhoneNumber"
@@ -257,21 +263,43 @@ export default function RateCustomerPage() {
                 </p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="reviewerRole" className="flex items-center text-sm font-medium">
-                  <User className="mr-2 h-4 w-4 text-brand-red" /> Your Role
+                <Label htmlFor="customerName" className="flex items-center text-sm font-medium">
+                  <UserCircle className="mr-2 h-4 w-4 text-brand-red" /> Customer Name (Optional)
                 </Label>
-                <Select value={reviewerRole} onValueChange={setReviewerRole} required name="reviewerRole">
-                  <SelectTrigger id="reviewerRole" className="h-11 text-base">
-                    <SelectValue placeholder="Select your role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="owner">Owner</SelectItem>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="server">Server</SelectItem>
-                    <SelectItem value="cashier">Cashier</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Input
+                  id="customerName"
+                  type="text"
+                  placeholder="e.g., John Smith or leave blank for auto-generated"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="h-11 text-base"
+                />
+                <p className="text-xs text-text-secondary">
+                  {customerName.trim() 
+                    ? `Will display as: ${customerName.trim()}` 
+                    : customerPhoneNumber.replace(/\D/g, "").length === 10 
+                      ? `Will auto-generate: ${generateDisplayId(customerPhoneNumber.replace(/\D/g, ""))}`
+                      : "Enter phone number to see auto-generated name"
+                  }
+                </p>
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="reviewerRole" className="flex items-center text-sm font-medium">
+                <User className="mr-2 h-4 w-4 text-brand-red" /> Your Role *
+              </Label>
+              <Select value={reviewerRole} onValueChange={setReviewerRole} required name="reviewerRole">
+                <SelectTrigger id="reviewerRole" className="h-11 text-base">
+                  <SelectValue placeholder="Select your role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="owner">Owner</SelectItem>
+                  <SelectItem value="manager">Manager</SelectItem>
+                  <SelectItem value="server">Server</SelectItem>
+                  <SelectItem value="cashier">Cashier</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-6">
