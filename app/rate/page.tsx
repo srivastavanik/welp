@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useVoiceRecording } from "@/hooks/use-voice-recording"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
-import { reviewsStore } from "@/lib/reviews-store"
+
 
 // Force dynamic rendering to avoid prerendering issues with useSearchParams
 export const dynamic = 'force-dynamic'
@@ -138,51 +138,70 @@ export default function RateCustomerPage() {
     }
 
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
-    
-    // Use provided customer name or generate one from phone number
-    const displayName = customerName.trim() || generateDisplayId(cleanPhone)
-    
-    // Create new review object
-    const newReview = {
-      customerDisplayId: displayName,
-      overallRating,
-      behaviorRating,
-      paymentRating,
-      maintenanceRating,
-      comment,
-      voiceRecordingUrl,
-      date: new Date().toISOString().split('T')[0],
-      reviewer: "Sarah M.", // Mock current user
-      reviewerRole,
-      tags: generateTags(overallRating, comment)
+
+    try {
+      // Use provided customer name or generate one from phone number
+      const displayName = customerName.trim() || generateDisplayId(cleanPhone)
+      
+      // Submit review to API
+      const reviewData = {
+        customer_phone: cleanPhone,
+        customer_name: displayName,
+        restaurant_name: "Current Restaurant", // You might want to make this configurable
+        rating: overallRating,
+        behavior_rating: behaviorRating,
+        payment_rating: paymentRating,
+        maintenance_rating: maintenanceRating,
+        comment: comment,
+        reviewer_role: reviewerRole
+      }
+
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reviewData)
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to submit review')
+      }
+
+      const { review } = await response.json()
+
+      toast({
+        title: "Review Submitted!",
+        description: `Thank you for rating customer ${displayName}.`,
+        className: "bg-green-500 text-white",
+      })
+
+      // Reset form
+      setCustomerPhoneNumber("")
+      setCustomerName("")
+      setOverallRating(0)
+      setBehaviorRating(0)
+      setPaymentRating(0)
+      setMaintenanceRating(0)
+      setComment("")
+      setReviewerRole("")
+      setVoiceRecordingUrl(null)
+
+      // Navigate to reviews page after a short delay
+      setTimeout(() => {
+        router.push('/reviews')
+      }, 2000)
+
+    } catch (error) {
+      console.error('Error submitting review:', error)
+      toast({
+        title: "Error",
+        description: "Failed to submit review. Please try again.",
+        variant: "destructive",
+      })
     }
-
-    // Add to reviews store
-    const savedReview = reviewsStore.addReview(newReview)
-
+    
     setIsLoading(false)
-    toast({
-      title: "Review Submitted!",
-      description: `Thank you for rating customer ${newReview.customerDisplayId}.`,
-      className: "bg-green-500 text-white",
-    })
-
-    // Reset form
-    setCustomerPhoneNumber("")
-    setCustomerName("")
-    setOverallRating(0)
-    setBehaviorRating(0)
-    setPaymentRating(0)
-    setMaintenanceRating(0)
-    setComment("")
-    setReviewerRole("")
-    setVoiceRecordingUrl(null)
-
-    // Navigate to reviews page after a short delay
-    setTimeout(() => {
-      router.push('/reviews')
-    }, 2000)
   }
 
   // Generate display ID from phone number

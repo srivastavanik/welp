@@ -36,7 +36,26 @@ import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { redditService } from "@/lib/reddit"
 import { cn } from "@/lib/utils"
-import { reviewsStore, type Review } from "@/lib/reviews-store"
+// Updated Review interface to match Supabase structure
+interface Review {
+  id: string
+  customer_id: string
+  restaurant_name: string
+  rating: number
+  comment: string
+  behavior_rating: number
+  payment_rating: number
+  maintenance_rating: number
+  reviewer_role: string
+  created_at: string
+  updated_at: string
+  customer?: {
+    id: string
+    name: string
+    phone_number: string
+    email?: string
+  }
+}
 
 export default function MyReviewsPage() {
   const [reviews, setReviews] = useState<Review[]>([])
@@ -45,20 +64,55 @@ export default function MyReviewsPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const { toast } = useToast()
 
-  // Load reviews from store on component mount
+  // Load reviews from API on component mount
   useEffect(() => {
-    const loadedReviews = reviewsStore.getReviews()
-    setReviews(loadedReviews)
+    loadReviews()
   }, [])
 
-  const handleDeleteReview = (reviewId: string) => {
-    reviewsStore.deleteReview(reviewId)
-    setReviews(reviewsStore.getReviews())
-    toast({
-      title: "Review Deleted",
-      description: "The review has been successfully deleted.",
-      className: "bg-red-500 text-white",
-    })
+  const loadReviews = async () => {
+    try {
+      const response = await fetch('/api/reviews')
+      if (!response.ok) {
+        throw new Error('Failed to fetch reviews')
+      }
+      const { reviews } = await response.json()
+      setReviews(reviews)
+    } catch (error) {
+      console.error('Error loading reviews:', error)
+      toast({
+        title: "Error",
+        description: "Failed to load reviews. Please refresh the page.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteReview = async (reviewId: string) => {
+    try {
+      const response = await fetch(`/api/reviews/${reviewId}`, {
+        method: 'DELETE'
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete review')
+      }
+
+      // Remove from local state
+      setReviews(reviews.filter(review => review.id !== reviewId))
+      
+      toast({
+        title: "Review Deleted",
+        description: "The review has been successfully deleted.",
+        className: "bg-red-500 text-white",
+      })
+    } catch (error) {
+      console.error('Error deleting review:', error)
+      toast({
+        title: "Error",
+        description: "Failed to delete review. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleEditReview = (review: Review) => {
@@ -66,19 +120,52 @@ export default function MyReviewsPage() {
     setEditDialogOpen(true)
   }
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editingReview) return
 
-    reviewsStore.updateReview(editingReview.id, editingReview)
-    setReviews(reviewsStore.getReviews())
-    setEditDialogOpen(false)
-    setEditingReview(null)
-    
-    toast({
-      title: "Review Updated",
-      description: "Your review has been successfully updated.",
-      className: "bg-green-500 text-white",
-    })
+    try {
+      const response = await fetch(`/api/reviews/${editingReview.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          rating: editingReview.rating,
+          comment: editingReview.comment,
+          behavior_rating: editingReview.behavior_rating,
+          payment_rating: editingReview.payment_rating,
+          maintenance_rating: editingReview.maintenance_rating,
+          reviewer_role: editingReview.reviewer_role
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update review')
+      }
+
+      const { review: updatedReview } = await response.json()
+      
+      // Update local state
+      setReviews(reviews.map(review => 
+        review.id === updatedReview.id ? updatedReview : review
+      ))
+      
+      setEditDialogOpen(false)
+      setEditingReview(null)
+      
+      toast({
+        title: "Review Updated",
+        description: "Your review has been successfully updated.",
+        className: "bg-green-500 text-white",
+      })
+    } catch (error) {
+      console.error('Error updating review:', error)
+      toast({
+        title: "Error",
+        description: "Failed to update review. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleShareToReddit = async (reviewId: string) => {
@@ -88,26 +175,19 @@ export default function MyReviewsPage() {
     setLoadingReddit(reviewId)
 
     try {
-      // Generate Reddit post content
+      // Generate Reddit post content using updated review structure
       const postContent = redditService.generatePostContent({
-        customerDisplayId: review.customerDisplayId,
-        overallRating: review.overallRating,
+        customerDisplayId: review.customer?.name || `Customer ${review.customer_id.slice(-4)}`,
+        overallRating: review.rating,
         comment: review.comment,
-        tags: review.tags,
-        reviewerRole: review.reviewerRole
+        tags: [], // Tags would need to be generated from the comment/rating
+        reviewerRole: review.reviewer_role
       })
 
       // Use mock posting for now (until Reddit API is configured)
       const result = await redditService.mockPostToReddit(postContent)
 
       if (result.success) {
-        // Update review with Reddit info
-        reviewsStore.updateReview(reviewId, { 
-          redditShared: true, 
-          redditUrl: result.url 
-        })
-        setReviews(reviewsStore.getReviews())
-
         toast({
           title: "Posted to Reddit!",
           description: `Successfully shared to r/${postContent.subreddit}`,
@@ -172,44 +252,30 @@ export default function MyReviewsPage() {
             <Card key={review.id} className="border-border-subtle shadow-sm overflow-hidden">
               <CardHeader className="flex flex-row justify-between items-start gap-2 pb-3">
                 <div>
-                  <CardTitle className="text-xl text-text-primary">Review for: {review.customerDisplayId}</CardTitle>
+                  <CardTitle className="text-xl text-text-primary">
+                    Review for: {review.customer?.name || `Customer ${review.customer_id.slice(-4)}`}
+                  </CardTitle>
                   <CardDescription className="text-sm text-text-secondary">
-                    Rated on {new Date(review.date).toLocaleDateString()} by {review.reviewer} ({review.reviewerRole})
+                    Rated on {new Date(review.created_at).toLocaleDateString()} by {review.reviewer_role}
                   </CardDescription>
                 </div>
-                <StarRatingDisplay rating={review.overallRating} size={20} showText />
+                <StarRatingDisplay rating={review.rating} size={20} showText />
               </CardHeader>
               <CardContent className="space-y-3 pt-0">
                 <p className="text-sm text-text-secondary italic leading-relaxed">"{review.comment}"</p>
 
-                {review.tags && review.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5">
-                    {review.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-
-                {review.voiceRecordingUrl && (
-                  <div className="text-sm text-blue-600 flex items-center gap-1">
-                    <Mic className="h-4 w-4" /> Voice note attached (mock playback)
-                  </div>
-                )}
-
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm pt-2 border-t border-border-subtle mt-3">
                   <div>
                     <span className="font-medium">Behavior:</span>{" "}
-                    <StarRatingDisplay rating={review.behaviorRating} size={14} className="inline-flex ml-1" />
+                    <StarRatingDisplay rating={review.behavior_rating} size={14} className="inline-flex ml-1" />
                   </div>
                   <div>
                     <span className="font-medium">Payment:</span>{" "}
-                    <StarRatingDisplay rating={review.paymentRating} size={14} className="inline-flex ml-1" />
+                    <StarRatingDisplay rating={review.payment_rating} size={14} className="inline-flex ml-1" />
                   </div>
                   <div>
                     <span className="font-medium">Maintenance:</span>{" "}
-                    <StarRatingDisplay rating={review.maintenanceRating} size={14} className="inline-flex ml-1" />
+                    <StarRatingDisplay rating={review.maintenance_rating} size={14} className="inline-flex ml-1" />
                   </div>
                 </div>
 
@@ -226,7 +292,9 @@ export default function MyReviewsPage() {
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Edit Review for {editingReview?.customerDisplayId}</DialogTitle>
+                        <DialogTitle>
+                          Edit Review for {editingReview?.customer?.name || `Customer ${editingReview?.customer_id.slice(-4)}`}
+                        </DialogTitle>
                         <DialogDescription>
                           Make changes to your review. Click save when you're done.
                         </DialogDescription>
@@ -237,8 +305,8 @@ export default function MyReviewsPage() {
                             <div>
                               <Label className="text-sm font-medium mb-2 block">Overall Rating</Label>
                               <StarRatingInput 
-                                value={editingReview.overallRating} 
-                                onChange={(rating) => setEditingReview({...editingReview, overallRating: rating})}
+                                value={editingReview.rating} 
+                                onChange={(rating) => setEditingReview({...editingReview, rating: rating})}
                                 size={28}
                               />
                             </div>
@@ -246,8 +314,8 @@ export default function MyReviewsPage() {
                             <div>
                               <Label className="text-sm font-medium mb-2 block">Behavior Rating</Label>
                               <StarRatingInput 
-                                value={editingReview.behaviorRating} 
-                                onChange={(rating) => setEditingReview({...editingReview, behaviorRating: rating})}
+                                value={editingReview.behavior_rating} 
+                                onChange={(rating) => setEditingReview({...editingReview, behavior_rating: rating})}
                                 size={24}
                               />
                             </div>
@@ -255,8 +323,8 @@ export default function MyReviewsPage() {
                             <div>
                               <Label className="text-sm font-medium mb-2 block">Payment Rating</Label>
                               <StarRatingInput 
-                                value={editingReview.paymentRating} 
-                                onChange={(rating) => setEditingReview({...editingReview, paymentRating: rating})}
+                                value={editingReview.payment_rating} 
+                                onChange={(rating) => setEditingReview({...editingReview, payment_rating: rating})}
                                 size={24}
                               />
                             </div>
@@ -264,8 +332,8 @@ export default function MyReviewsPage() {
                             <div>
                               <Label className="text-sm font-medium mb-2 block">Maintenance Rating</Label>
                               <StarRatingInput 
-                                value={editingReview.maintenanceRating} 
-                                onChange={(rating) => setEditingReview({...editingReview, maintenanceRating: rating})}
+                                value={editingReview.maintenance_rating} 
+                                onChange={(rating) => setEditingReview({...editingReview, maintenance_rating: rating})}
                                 size={24}
                               />
                             </div>
@@ -273,8 +341,8 @@ export default function MyReviewsPage() {
                             <div>
                               <Label htmlFor="edit-role" className="text-sm font-medium">Your Role</Label>
                               <Select 
-                                value={editingReview.reviewerRole} 
-                                onValueChange={(value) => setEditingReview({...editingReview, reviewerRole: value})}
+                                value={editingReview.reviewer_role} 
+                                onValueChange={(value) => setEditingReview({...editingReview, reviewer_role: value})}
                               >
                                 <SelectTrigger id="edit-role" className="mt-1">
                                   <SelectValue />
@@ -342,13 +410,8 @@ export default function MyReviewsPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleShareToReddit(review.id)}
-                    disabled={review.redditShared || loadingReddit === review.id}
-                    className={cn(
-                      "transition-all duration-200",
-                      review.redditShared 
-                        ? "text-orange-600 border-orange-500 hover:bg-orange-50 bg-orange-50" 
-                        : "hover:border-orange-400 hover:text-orange-600"
-                    )}
+                    disabled={loadingReddit === review.id}
+                    className="hover:border-orange-400 hover:text-orange-600"
                   >
                     {loadingReddit === review.id ? (
                       <>
@@ -358,23 +421,10 @@ export default function MyReviewsPage() {
                     ) : (
                       <>
                         <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                        {review.redditShared ? "Posted to Reddit" : "Post to Reddit"}
+                        Post to Reddit
                       </>
                     )}
                   </Button>
-
-                  {/* View Reddit Post Button */}
-                  {review.redditShared && review.redditUrl && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(review.redditUrl, '_blank')}
-                      className="text-orange-600 border-orange-300 hover:bg-orange-50"
-                    >
-                      <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                      View on Reddit
-                    </Button>
-                  )}
                 </div>
               </CardContent>
             </Card>

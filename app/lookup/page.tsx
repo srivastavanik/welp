@@ -154,22 +154,120 @@ export default function CustomerLookupPage() {
     setIsLoading(true)
     setCustomerProfile(null)
     setNotFound(false)
-    await new Promise((resolve) => setTimeout(resolve, 1500))
 
-    if (phoneNumber.includes("5550001111")) {
-      // Specific number for "not found"
-      setNotFound(true)
-      toast({ title: "Not Found", description: "No customer profile found for this phone number." })
-    } else if (phoneNumber.includes("5552223333")) {
-      // Specific number for "good customer"
-      setCustomerProfile(mockCustomerGood)
-      toast({ title: "Customer Found", description: `Displaying profile for ${mockCustomerGood.displayId}` })
-    } else {
-      // Any other valid-ish number
-      setCustomerProfile(mockCustomerFound)
-      toast({ title: "Customer Found", description: `Displaying profile for ${mockCustomerFound.displayId}` })
+    try {
+      // Clean phone number for API call
+      const cleanPhone = phoneNumber.replace(/\D/g, "")
+      
+      // Look up customer
+      const customerResponse = await fetch(`/api/customers?phone=${cleanPhone}`)
+      
+      if (customerResponse.status === 404) {
+        setNotFound(true)
+        toast({ title: "Not Found", description: "No customer profile found for this phone number." })
+        setIsLoading(false)
+        return
+      }
+
+      if (!customerResponse.ok) {
+        throw new Error('Failed to fetch customer')
+      }
+
+      const { customer } = await customerResponse.json()
+
+      // Fetch reviews for this customer
+      const reviewsResponse = await fetch(`/api/reviews?customer_id=${customer.id}`)
+      if (!reviewsResponse.ok) {
+        throw new Error('Failed to fetch reviews')
+      }
+
+      const { reviews } = await reviewsResponse.json()
+
+      // Calculate profile data from reviews
+      const profile = calculateCustomerProfile(customer, reviews)
+      setCustomerProfile(profile)
+      toast({ title: "Customer Found", description: `Displaying profile for ${profile.displayId}` })
+      
+    } catch (error) {
+      console.error('Error during lookup:', error)
+      toast({
+        title: "Error",
+        description: "Failed to look up customer. Please try again.",
+        variant: "destructive",
+      })
     }
+    
     setIsLoading(false)
+  }
+
+  const calculateCustomerProfile = (customer: any, reviews: any[]): CustomerProfileMock => {
+    if (reviews.length === 0) {
+      return {
+        id: customer.id,
+        displayId: customer.name,
+        overallScore: 0,
+        totalReviews: 0,
+        behaviorScore: 0,
+        paymentScore: 0,
+        maintenanceScore: 0,
+        isFlagged: false,
+        lastReviewDate: "No reviews yet",
+        recentReviews: []
+      }
+    }
+
+    const totalRating = reviews.reduce((sum, review) => sum + review.rating, 0)
+    const behaviorTotal = reviews.reduce((sum, review) => sum + review.behavior_rating, 0)
+    const paymentTotal = reviews.reduce((sum, review) => sum + review.payment_rating, 0)
+    const maintenanceTotal = reviews.reduce((sum, review) => sum + review.maintenance_rating, 0)
+
+    const overallScore = totalRating / reviews.length
+    const behaviorScore = behaviorTotal / reviews.length
+    const paymentScore = paymentTotal / reviews.length
+    const maintenanceScore = maintenanceTotal / reviews.length
+
+    const recentReviews = reviews.slice(0, 10).map(review => ({
+      businessName: review.restaurant_name,
+      rating: review.rating,
+      comment: review.comment,
+      date: new Date(review.created_at).toLocaleDateString(),
+      reviewerRole: review.reviewer_role,
+      tags: generateTagsFromRating(review.rating, review.comment)
+    }))
+
+    return {
+      id: customer.id,
+      displayId: customer.name,
+      overallScore,
+      totalReviews: reviews.length,
+      behaviorScore,
+      paymentScore,
+      maintenanceScore,
+      isFlagged: overallScore < 2.5,
+      lastReviewDate: reviews.length > 0 ? new Date(reviews[0].created_at).toLocaleDateString() : "No reviews",
+      recentReviews
+    }
+  }
+
+  const generateTagsFromRating = (rating: number, comment: string): string[] => {
+    const tags: string[] = []
+    const lowerComment = comment.toLowerCase()
+
+    if (rating >= 4) {
+      if (lowerComment.includes('tip') || lowerComment.includes('generous')) tags.push('Generous Tipper')
+      if (lowerComment.includes('polite') || lowerComment.includes('pleasant')) tags.push('Polite')
+      if (lowerComment.includes('understanding') || lowerComment.includes('patient')) tags.push('Patient')
+      if (tags.length === 0) tags.push('Great Customer')
+    } else if (rating <= 2) {
+      if (lowerComment.includes('rude') || lowerComment.includes('difficult')) tags.push('Rude')
+      if (lowerComment.includes('mess') || lowerComment.includes('dirty')) tags.push('Messy')
+      if (lowerComment.includes('dispute') || lowerComment.includes('refund')) tags.push('Dispute')
+      if (tags.length === 0) tags.push('Difficult Customer')
+    } else {
+      tags.push('Average')
+    }
+
+    return tags
   }
 
   return (
