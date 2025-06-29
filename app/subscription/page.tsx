@@ -11,6 +11,9 @@ import { useToast } from "@/hooks/use-toast"
 import { useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
+// Force dynamic rendering to prevent prerendering issues
+export const dynamic = 'force-dynamic'
+
 const freeFeatures = [
   { text: "3 Customer Lookups per month", included: true },
   { text: "Basic Rating Ability", included: true },
