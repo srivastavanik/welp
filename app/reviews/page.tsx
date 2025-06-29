@@ -1,6 +1,6 @@
 "use client"
 
-// Force dynamic rendering to prevent prerender errors with client-side features
+// Force dynamic rendering to prevent prerendering issues with client components
 export const dynamic = 'force-dynamic'
 
 import { useState, useEffect } from "react"
