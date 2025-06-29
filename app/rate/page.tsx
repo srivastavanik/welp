@@ -30,6 +30,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { reviewsStore } from "@/lib/reviews-store"
 
+// Force dynamic rendering to avoid prerendering issues with useSearchParams
+export const dynamic = 'force-dynamic'
+
 export default function RateCustomerPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
