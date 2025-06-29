@@ -30,6 +30,8 @@ export interface Review {
   payment_rating: number
   maintenance_rating: number
   reviewer_role: string
+  reddit_url?: string
+  reddit_shared?: boolean
   created_at: string
   updated_at: string
   customer?: Customer
@@ -43,7 +45,7 @@ export const customerService = {
       .insert(data)
       .select()
       .single()
-    
+
     if (error) throw error
     return customer
   },
@@ -54,7 +56,7 @@ export const customerService = {
       .select('*')
       .eq('phone_number', phoneNumber)
       .single()
-    
+
     if (error && error.code !== 'PGRST116') throw error
     return data
   },
@@ -66,7 +68,7 @@ export const customerService = {
       .eq('id', id)
       .select()
       .single()
-    
+
     if (error) throw error
     return customer
   }
@@ -82,7 +84,7 @@ export const reviewService = {
         customer:customers(*)
       `)
       .single()
-    
+
     if (error) throw error
     return review
   },
@@ -96,7 +98,7 @@ export const reviewService = {
       `)
       .eq('customer_id', customerId)
       .order('created_at', { ascending: false })
-    
+
     if (error) throw error
     return data
   },
@@ -110,7 +112,7 @@ export const reviewService = {
       `)
       .eq('restaurant_name', restaurantName)
       .order('created_at', { ascending: false })
-    
+
     if (error) throw error
     return data
   },
@@ -123,7 +125,7 @@ export const reviewService = {
         customer:customers(*)
       `)
       .order('created_at', { ascending: false })
-    
+
     if (error) throw error
     return data
   }

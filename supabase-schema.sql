@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS reviews (
   payment_rating DECIMAL(2,1) NOT NULL CHECK (payment_rating >= 0 AND payment_rating <= 5),
   maintenance_rating DECIMAL(2,1) NOT NULL CHECK (maintenance_rating >= 0 AND maintenance_rating <= 5),
   reviewer_role VARCHAR(50) NOT NULL,
+  reddit_url TEXT,
+  reddit_shared BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

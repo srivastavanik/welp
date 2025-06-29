@@ -38,8 +38,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StarRatingInput } from "@/components/custom/star-rating"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
-import { redditService } from "@/lib/reddit"
-import { cn } from "@/lib/utils"
 // Updated Review interface to match Supabase structure
 interface Review {
   id: string
@@ -59,6 +57,7 @@ interface Review {
     phone_number: string
     email?: string
   }
+  reddit_url?: string
 }
 
 export default function MyReviewsPage() {
@@ -179,37 +178,57 @@ export default function MyReviewsPage() {
     setLoadingReddit(reviewId)
 
     try {
-      // Generate Reddit post content using updated review structure
-      const postContent = redditService.generatePostContent({
+      // Build payload expected by /api/reddit
+      const payload = {
         customerDisplayId: review.customer?.name || `Customer ${review.customer_id.slice(-4)}`,
         overallRating: review.rating,
         comment: review.comment,
-        tags: [], // Tags would need to be generated from the comment/rating
-        reviewerRole: review.reviewer_role
+        tags: [], // TODO: derive tags
+        reviewerRole: review.reviewer_role,
+      }
+
+      const res = await fetch('/api/reddit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       })
 
-      // Use mock posting for now (until Reddit API is configured)
-      const result = await redditService.mockPostToReddit(postContent)
+      const data = await res.json()
 
-      if (result.success) {
-        toast({
-          title: "Posted to Reddit!",
-          description: `Successfully shared to r/${postContent.subreddit}`,
-          className: "bg-orange-500 text-white",
-          action: result.url ? (
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => window.open(result.url, '_blank')}
-              className="bg-white text-orange-500 border-orange-300 hover:bg-orange-50"
-            >
-              View Post
-            </Button>
-          ) : undefined
-        })
-      } else {
-        throw new Error(result.error || 'Failed to post to Reddit')
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to post to Reddit')
       }
+
+      // Update local review with Reddit URL
+      const redditUrl: string = data.url
+      setReviews(reviews.map(r => r.id === reviewId ? { ...r, reddit_url: redditUrl } : r))
+
+      // Persist to Supabase
+      try {
+        await fetch(`/api/reviews/${reviewId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reddit_url: redditUrl }),
+        })
+      } catch (err) {
+        console.error('Failed to persist reddit_url', err)
+      }
+
+      toast({
+        title: "Posted to Reddit!",
+        description: `Successfully shared to Reddit`,
+        className: "bg-orange-500 text-white",
+        action: redditUrl ? (
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => window.open(redditUrl, '_blank')}
+            className="bg-white text-orange-500 border-orange-300 hover:bg-orange-50"
+          >
+            View Post
+          </Button>
+        ) : undefined
+      })
     } catch (error) {
       console.error('Reddit posting error:', error)
       toast({
@@ -409,26 +428,38 @@ export default function MyReviewsPage() {
                     </AlertDialogContent>
                   </AlertDialog>
                   
-                  {/* Reddit Share Button */}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleShareToReddit(review.id)}
-                    disabled={loadingReddit === review.id}
-                    className="hover:border-orange-400 hover:text-orange-600"
-                  >
-                    {loadingReddit === review.id ? (
-                      <>
-                        <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                        Posting...
-                      </>
-                    ) : (
-                      <>
-                        <Share2 className="mr-1.5 h-3.5 w-3.5" />
-                        Post to Reddit
-                      </>
-                    )}
-                  </Button>
+                  {/* Reddit Share/View Button */}
+                  {review.reddit_url ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(review.reddit_url!, '_blank')}
+                      className="hover:border-orange-400 hover:text-orange-600"
+                    >
+                      <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                      View on Reddit
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleShareToReddit(review.id)}
+                      disabled={loadingReddit === review.id}
+                      className="hover:border-orange-400 hover:text-orange-600"
+                    >
+                      {loadingReddit === review.id ? (
+                        <>
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                          Posting...
+                        </>
+                      ) : (
+                        <>
+                          <Share2 className="mr-1.5 h-3.5 w-3.5" />
+                          Post to Reddit
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>

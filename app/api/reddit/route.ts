@@ -27,12 +27,12 @@ async function generateCatchyTitle(params: {
                 Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-                model: 'gpt-3.5-turbo',
+                model: 'gpt-4.1-nano',
                 messages: [
                     {
                         role: 'system',
                         content:
-                            'You generate catchy, 1-sentence Reddit post titles for customer reviews. Be funny and clickbaity. You can get fucking mad if they pissed you tf off. Do NOT exceed 120 characters, but do not cut off the sentence (should be complete). Do not put quotes around it. You do not have to summarize literally everything in the post, just make the best possible funny clickbait angry title.',
+                            'You generate catchy, 1-sentence Reddit post titles for customer reviews. The user is some kind of service worker, and they will give you their review on a particular customer experience. Be funny and clickbaity. You can get fucking mad if they pissed you tf off. Do NOT exceed 120 characters, but do not cut off the sentence (should be complete). Do NOT put quotes around it. You do not have to summarize literally everything in the post, just make the best possible funny clickbait angry title.',
                     },
                     {
                         role: 'user',

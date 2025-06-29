@@ -26,11 +26,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { 
-      customer_phone, 
-      customer_name, 
-      restaurant_name, 
-      rating, 
+    const {
+      customer_phone,
+      customer_name,
+      restaurant_name,
+      rating,
       comment,
       behavior_rating,
       payment_rating,
@@ -39,8 +39,8 @@ export async function POST(request: NextRequest) {
     } = body
 
     if (!customer_phone || !restaurant_name || !rating || !reviewer_role) {
-      return NextResponse.json({ 
-        error: 'Customer phone, restaurant name, rating, and reviewer role are required' 
+      return NextResponse.json({
+        error: 'Customer phone, restaurant name, rating, and reviewer role are required'
       }, { status: 400 })
     }
 

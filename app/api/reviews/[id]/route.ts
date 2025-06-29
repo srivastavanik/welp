@@ -35,24 +35,26 @@ export async function PUT(
 ) {
   try {
     const body = await request.json()
-    const { 
-      rating, 
-      comment, 
-      behavior_rating, 
-      payment_rating, 
-      maintenance_rating, 
-      reviewer_role 
+    const {
+      rating,
+      comment,
+      behavior_rating,
+      payment_rating,
+      maintenance_rating,
+      reviewer_role,
+      reddit_url,
     } = body
 
     const { data: review, error } = await supabase
       .from('reviews')
       .update({
-        rating,
-        comment,
-        behavior_rating,
-        payment_rating,
-        maintenance_rating,
-        reviewer_role,
+        ...(rating !== undefined && { rating }),
+        ...(comment !== undefined && { comment }),
+        ...(behavior_rating !== undefined && { behavior_rating }),
+        ...(payment_rating !== undefined && { payment_rating }),
+        ...(maintenance_rating !== undefined && { maintenance_rating }),
+        ...(reviewer_role !== undefined && { reviewer_role }),
+        ...(reddit_url !== undefined && { reddit_url }),
         updated_at: new Date().toISOString()
       })
       .eq('id', params.id)

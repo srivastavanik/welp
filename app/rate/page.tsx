@@ -182,34 +182,6 @@ function RateCustomerPageContent() {
         className: "bg-green-500 text-white",
       })
 
-      // Fire-and-forget: post the review to Reddit via our API route
-      const redditPayload = {
-        customerDisplayId: displayName,
-        overallRating: overallRating,
-        comment: comment,
-        tags: generateTags(overallRating, comment),
-        reviewerRole: reviewerRole,
-      }
-
-      console.log('⏩ Posting review to Reddit...', redditPayload)
-
-      fetch('/api/reddit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(redditPayload),
-      })
-        .then(async (res) => {
-          const data = await res.json()
-          if (data.success) {
-            console.log('✅ Reddit post created:', data.url)
-          } else {
-            console.error('❌ Reddit post failed:', data.error)
-          }
-        })
-        .catch((err) => {
-          console.error('❌ Network error posting to Reddit:', err)
-        })
-
       // Reset form
       setCustomerPhoneNumber("")
       setCustomerName("")
