@@ -154,6 +154,34 @@ export default function RateCustomerPage() {
       (window as any).addNewReview(newReview)
     }
 
+    // Fire-and-forget: post the review to Reddit via our API route
+    const redditPayload = {
+      customerDisplayId: newReview.customerDisplayId,
+      overallRating: newReview.overallRating,
+      comment: newReview.comment,
+      tags: newReview.tags,
+      reviewerRole: newReview.reviewerRole,
+    }
+
+    console.log('⏩ Posting review to Reddit...', redditPayload)
+
+    fetch('/api/reddit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(redditPayload),
+    })
+      .then(async (res) => {
+        const data = await res.json()
+        if (data.success) {
+          console.log('✅ Reddit post created:', data.url)
+        } else {
+          console.error('❌ Reddit post failed:', data.error)
+        }
+      })
+      .catch((err) => {
+        console.error('❌ Network error posting to Reddit:', err)
+      })
+
     setIsLoading(false)
     toast({
       title: "Review Submitted!",
