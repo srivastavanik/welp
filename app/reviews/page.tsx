@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { PageHeader } from "@/components/custom/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StarRatingDisplay } from "@/components/custom/star-rating"
@@ -36,82 +36,24 @@ import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { redditService } from "@/lib/reddit"
 import { cn } from "@/lib/utils"
-
-interface ReviewMock {
-  id: string
-  customerDisplayId: string
-  overallRating: number
-  behaviorRating: number
-  paymentRating: number
-  maintenanceRating: number
-  comment: string
-  voiceRecordingUrl?: string
-  date: string
-  reviewer: string // Your display name
-  reviewerRole: string
-  redditShared?: boolean
-  redditUrl?: string
-  tags?: string[]
-}
-
-const mockReviewsData: ReviewMock[] = [
-  {
-    id: "rev_1",
-    customerDisplayId: "Karen P.",
-    overallRating: 1.2,
-    behaviorRating: 1.0,
-    paymentRating: 2.0,
-    maintenanceRating: 1.5,
-    comment:
-      "Extremely difficult, demanded a refund for no reason. Caused a scene and was rude to staff. Left a huge mess.",
-    date: "2024-07-15",
-    reviewer: "Sarah M.",
-    reviewerRole: "Manager",
-    redditShared: true,
-    redditUrl: "https://reddit.com/r/CustomerFromHell/comments/abc123/nightmare_customer_experience",
-    tags: ["Rude", "Dispute", "High Maintenance", "Messy"],
-  },
-  {
-    id: "rev_2",
-    customerDisplayId: "John D.",
-    overallRating: 4.5,
-    behaviorRating: 5.0,
-    paymentRating: 4.5,
-    maintenanceRating: 4.0,
-    comment: "Pleasant customer, paid promptly. No issues at all, would serve again anytime. Very polite.",
-    voiceRecordingUrl: "mock_audio.mp3",
-    date: "2024-07-18",
-    reviewer: "Sarah M.",
-    reviewerRole: "Manager",
-    tags: ["Prompt Payment", "Polite", "Easy Going"],
-  },
-  {
-    id: "rev_3",
-    customerDisplayId: "David S.",
-    overallRating: 5.0,
-    behaviorRating: 5.0,
-    paymentRating: 5.0,
-    maintenanceRating: 5.0,
-    comment: "Best customer ever! Tipped generously and was very understanding about a small delay. A true gem.",
-    date: "2024-07-10",
-    reviewer: "Mike B.",
-    reviewerRole: "Server",
-    redditShared: true,
-    redditUrl: "https://reddit.com/r/CustomerFromHeaven/comments/def456/amazing_customer_experience",
-    tags: ["Generous Tipper", "Understanding", "Exceptional"],
-  },
-]
+import { reviewsStore, type Review } from "@/lib/reviews-store"
 
 export default function MyReviewsPage() {
-  const [reviews, setReviews] = useState<ReviewMock[]>(mockReviewsData)
+  const [reviews, setReviews] = useState<Review[]>([])
   const [loadingReddit, setLoadingReddit] = useState<string | null>(null)
-  const [editingReview, setEditingReview] = useState<ReviewMock | null>(null)
+  const [editingReview, setEditingReview] = useState<Review | null>(null)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const { toast } = useToast()
 
+  // Load reviews from store on component mount
+  useEffect(() => {
+    const loadedReviews = reviewsStore.getReviews()
+    setReviews(loadedReviews)
+  }, [])
+
   const handleDeleteReview = (reviewId: string) => {
-    // Mock deletion
-    setReviews(reviews.filter((r) => r.id !== reviewId))
+    reviewsStore.deleteReview(reviewId)
+    setReviews(reviewsStore.getReviews())
     toast({
       title: "Review Deleted",
       description: "The review has been successfully deleted.",
@@ -119,7 +61,7 @@ export default function MyReviewsPage() {
     })
   }
 
-  const handleEditReview = (review: ReviewMock) => {
+  const handleEditReview = (review: Review) => {
     setEditingReview({ ...review })
     setEditDialogOpen(true)
   }
@@ -127,7 +69,8 @@ export default function MyReviewsPage() {
   const handleSaveEdit = () => {
     if (!editingReview) return
 
-    setReviews(reviews.map(r => r.id === editingReview.id ? editingReview : r))
+    reviewsStore.updateReview(editingReview.id, editingReview)
+    setReviews(reviewsStore.getReviews())
     setEditDialogOpen(false)
     setEditingReview(null)
     
@@ -159,11 +102,11 @@ export default function MyReviewsPage() {
 
       if (result.success) {
         // Update review with Reddit info
-        setReviews(reviews.map((r) => 
-          r.id === reviewId 
-            ? { ...r, redditShared: true, redditUrl: result.url } 
-            : r
-        ))
+        reviewsStore.updateReview(reviewId, { 
+          redditShared: true, 
+          redditUrl: result.url 
+        })
+        setReviews(reviewsStore.getReviews())
 
         toast({
           title: "Posted to Reddit!",
@@ -193,20 +136,6 @@ export default function MyReviewsPage() {
     } finally {
       setLoadingReddit(null)
     }
-  }
-
-  // Function to add new review (called from rate page)
-  const addNewReview = (newReview: Omit<ReviewMock, 'id'>) => {
-    const reviewWithId = {
-      ...newReview,
-      id: `rev_${Date.now()}`
-    }
-    setReviews(prev => [reviewWithId, ...prev])
-  }
-
-  // Make this function available globally for the rate page
-  if (typeof window !== 'undefined') {
-    (window as any).addNewReview = addNewReview
   }
 
   return (

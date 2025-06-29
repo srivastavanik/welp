@@ -27,6 +27,7 @@ import { useToast } from "@/hooks/use-toast"
 import { useVoiceRecording } from "@/hooks/use-voice-recording"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
+import { reviewsStore } from "@/lib/reviews-store"
 
 export default function RateCustomerPage() {
   const searchParams = useSearchParams()
@@ -149,10 +150,8 @@ export default function RateCustomerPage() {
       tags: generateTags(overallRating, comment)
     }
 
-    // Add to reviews page if the function exists
-    if (typeof window !== 'undefined' && (window as any).addNewReview) {
-      (window as any).addNewReview(newReview)
-    }
+    // Add to reviews store
+    const savedReview = reviewsStore.addReview(newReview)
 
     setIsLoading(false)
     toast({
