@@ -48,7 +48,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     display_name: 'Demo User',
     role: 'owner',
     subscription_tier: 'free',
-    lookups_remaining: 3
+    lookups_remaining: 5
   })
   const [business] = useState<Business | null>({
     id: 'mock-business-id',

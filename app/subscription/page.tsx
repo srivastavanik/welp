@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const freeFeatures = [
-  { text: "3 Customer Lookups per month", included: true },
+  { text: "5 Customer Lookups per month", included: true },
   { text: "Basic Rating Ability", included: true },
   { text: "See Limited Review Details", included: true },
   { text: "Voice Transcription", included: false },

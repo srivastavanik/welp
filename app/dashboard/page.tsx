@@ -28,7 +28,7 @@ import { Badge } from "@/components/ui/badge"
 const stats = [
   { title: "Total Reviews Left", value: "125", icon: StarIconLucide, change: "+12 this week", trend: "up" },
   { title: "Avg. Customer Rating", value: "3.8", icon: Users, change: "Slightly down", trend: "down" },
-  { title: "Lookups This Month", value: "2/3", icon: Search, change: "Free Tier", trend: "neutral" },
+  { title: "Lookups This Month", value: "2/5", icon: Search, change: "Free Tier", trend: "neutral" },
   { title: "Subscription", value: "Free", icon: CreditCard, change: "Upgrade for more", trend: "neutral" },
 ]
 

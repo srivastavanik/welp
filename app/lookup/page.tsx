@@ -126,7 +126,7 @@ export default function CustomerLookupPage() {
   const [notFound, setNotFound] = useState(false)
   const { toast } = useToast()
 
-  const lookupsRemaining = 1 // Mock
+  const lookupsRemaining = 3 // Mock - updated to show 3 out of 5 used
   const isPremium = false // Mock
 
   const handleLookup = async (event: React.FormEvent<HTMLFormElement>) => {
