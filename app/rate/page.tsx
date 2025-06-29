@@ -81,11 +81,16 @@ function RateCustomerPageContent() {
   });
 
   useEffect(() => {
-    const phoneFromQuery = searchParams.get("phone")
-    if (phoneFromQuery) {
-      // Clean the phone number to only digits
-      const cleanPhone = phoneFromQuery.replace(/\D/g, "")
-      setCustomerPhoneNumber(cleanPhone)
+    try {
+      const phoneFromQuery = searchParams.get("phone")
+      if (phoneFromQuery) {
+        // Clean the phone number to only digits
+        const cleanPhone = phoneFromQuery.replace(/\D/g, "")
+        setCustomerPhoneNumber(cleanPhone)
+      }
+    } catch (error) {
+      // Handle searchParams error gracefully
+      console.warn('Error accessing searchParams:', error)
     }
   }, [searchParams])
 
@@ -422,7 +427,8 @@ function RatingInputSection({ title, icon: Icon, value, onChange }: RatingInputS
   )
 }
 
-export default function RateCustomerPage() {
+// Error boundary component for searchParams issues
+function SearchParamsErrorBoundary({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center">
@@ -432,7 +438,15 @@ export default function RateCustomerPage() {
         </div>
       </div>
     }>
-      <RateCustomerPageContent />
+      {children}
     </Suspense>
+  )
+}
+
+export default function RateCustomerPage() {
+  return (
+    <SearchParamsErrorBoundary>
+      <RateCustomerPageContent />
+    </SearchParamsErrorBoundary>
   )
 }
