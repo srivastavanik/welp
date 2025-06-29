@@ -34,7 +34,6 @@ import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from "@/components/theme-provider"
 import { AuthProvider, useAuthContext } from "@/components/auth/auth-provider"
 import { cn } from "@/lib/utils"
-import "./globals.css"
 
 function AuthenticatedLayout({ children }: { children: React.ReactNode }) {
   const { user, userProfile, business, signOut, loading } = useAuthContext()

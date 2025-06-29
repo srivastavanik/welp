@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -32,8 +32,9 @@ import { cn } from "@/lib/utils"
 
 // Force dynamic rendering to avoid prerendering issues with useSearchParams
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
-export default function RateCustomerPage() {
+function RateCustomerPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { toast } = useToast()
@@ -81,11 +82,16 @@ export default function RateCustomerPage() {
   });
 
   useEffect(() => {
-    const phoneFromQuery = searchParams.get("phone")
-    if (phoneFromQuery) {
-      // Clean the phone number to only digits
-      const cleanPhone = phoneFromQuery.replace(/\D/g, "")
-      setCustomerPhoneNumber(cleanPhone)
+    try {
+      const phoneFromQuery = searchParams.get("phone")
+      if (phoneFromQuery) {
+        // Clean the phone number to only digits
+        const cleanPhone = phoneFromQuery.replace(/\D/g, "")
+        setCustomerPhoneNumber(cleanPhone)
+      }
+    } catch (error) {
+      // Handle searchParams error gracefully
+      console.warn('Error accessing searchParams:', error)
     }
   }, [searchParams])
 
@@ -228,6 +234,7 @@ export default function RateCustomerPage() {
         variant: "destructive",
       })
     }
+    
     setIsLoading(false)
   }
 
@@ -465,5 +472,29 @@ function RatingInputSection({ title, icon: Icon, value, onChange }: RatingInputS
       </Label>
       <StarRatingInput value={value} onChange={onChange} size={32} />
     </div>
+  )
+}
+
+// Error boundary component for searchParams issues
+function SearchParamsErrorBoundary({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-red mx-auto mb-4"></div>
+          <p className="text-text-secondary">Loading...</p>
+        </div>
+      </div>
+    }>
+      {children}
+    </Suspense>
+  )
+}
+
+export default function RateCustomerPage() {
+  return (
+    <SearchParamsErrorBoundary>
+      <RateCustomerPageContent />
+    </SearchParamsErrorBoundary>
   )
 }
