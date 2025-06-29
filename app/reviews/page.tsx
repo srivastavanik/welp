@@ -1,5 +1,8 @@
 "use client"
 
+// Force dynamic rendering to prevent prerender errors with client-side features
+export const dynamic = 'force-dynamic'
+
 import { useState, useEffect } from "react"
 import { PageHeader } from "@/components/custom/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
