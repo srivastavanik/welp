@@ -4,7 +4,7 @@ import { useState } from "react"
 import { PageHeader } from "@/components/custom/page-header"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { StarRatingDisplay } from "@/components/custom/star-rating"
-import { FileText, Edit3, Trash2, AlertTriangle, Share2, StarIcon as StarIconLucide, Mic, Loader2 } from "lucide-react"
+import { FileText, Edit3, Trash2, Share2, StarIcon as StarIconLucide, Mic, Loader2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +21,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { redditService } from "@/lib/reddit"
+import { cn } from "@/lib/utils"
 
 interface ReviewMock {
   id: string
@@ -34,7 +35,6 @@ interface ReviewMock {
   date: string
   reviewer: string // Your display name
   reviewerRole: string
-  flagged?: boolean // If the review itself was flagged by Welp admin
   redditShared?: boolean
   redditUrl?: string
   tags?: string[]
@@ -85,20 +85,6 @@ const mockReviewsData: ReviewMock[] = [
     redditShared: true,
     redditUrl: "https://reddit.com/r/CustomerFromHeaven/comments/def456/amazing_customer_experience",
     tags: ["Generous Tipper", "Understanding", "Exceptional"],
-  },
-  {
-    id: "rev_4",
-    customerDisplayId: "Anonymous C.", // Example of a customer not yet fully identified
-    overallRating: 3.0,
-    behaviorRating: 3,
-    paymentRating: 4,
-    maintenanceRating: 2,
-    comment: "Average experience. Paid fine, but left a bit of a mess on the table.",
-    date: "2024-06-20",
-    reviewer: "Sarah M.",
-    reviewerRole: "Manager",
-    flagged: true, // Review flagged by admin for review
-    tags: ["Average", "Slightly Messy"],
   },
 ]
 
@@ -174,6 +160,20 @@ export default function MyReviewsPage() {
     }
   }
 
+  // Function to add new review (called from rate page)
+  const addNewReview = (newReview: Omit<ReviewMock, 'id'>) => {
+    const reviewWithId = {
+      ...newReview,
+      id: `rev_${Date.now()}`
+    }
+    setReviews(prev => [reviewWithId, ...prev])
+  }
+
+  // Make this function available globally for the rate page
+  if (typeof window !== 'undefined') {
+    (window as any).addNewReview = addNewReview
+  }
+
   return (
     <>
       <PageHeader
@@ -206,11 +206,6 @@ export default function MyReviewsPage() {
         <div className="space-y-6">
           {reviews.map((review) => (
             <Card key={review.id} className="border-border-subtle shadow-sm overflow-hidden">
-              {review.flagged && (
-                <div className="bg-yellow-100 border-b border-yellow-300 p-2 text-xs text-yellow-700 flex items-center gap-1.5">
-                  <AlertTriangle className="h-4 w-4" /> This review is flagged and under review by Welp administrators.
-                </div>
-              )}
               <CardHeader className="flex flex-row justify-between items-start gap-2 pb-3">
                 <div>
                   <CardTitle className="text-xl text-text-primary">Review for: {review.customerDisplayId}</CardTitle>
@@ -262,7 +257,7 @@ export default function MyReviewsPage() {
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructiveOutline" size="sm">
+                      <Button variant="destructive" size="sm" className="border-red-300 text-red-600 hover:bg-red-50">
                         <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Delete
                       </Button>
                     </AlertDialogTrigger>
@@ -290,7 +285,7 @@ export default function MyReviewsPage() {
                     variant="outline"
                     size="sm"
                     onClick={() => handleShareToReddit(review.id)}
-                    disabled={review.redditShared || review.flagged || loadingReddit === review.id}
+                    disabled={review.redditShared || loadingReddit === review.id}
                     className={cn(
                       "transition-all duration-200",
                       review.redditShared 
@@ -331,8 +326,4 @@ export default function MyReviewsPage() {
       )}
     </>
   )
-}
-
-function cn(...classes: (string | undefined | false)[]): string {
-  return classes.filter(Boolean).join(' ')
 }

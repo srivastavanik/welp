@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState, useEffect } from "react"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils"
 
 export default function RateCustomerPage() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const { toast } = useToast()
   const [customerPhoneNumber, setCustomerPhoneNumber] = useState("")
   const [overallRating, setOverallRating] = useState(0)
@@ -76,7 +77,9 @@ export default function RateCustomerPage() {
   useEffect(() => {
     const phoneFromQuery = searchParams.get("phone")
     if (phoneFromQuery) {
-      setCustomerPhoneNumber(phoneFromQuery.replace(/\D/g, "").slice(0, 10))
+      // Clean the phone number to only digits
+      const cleanPhone = phoneFromQuery.replace(/\D/g, "")
+      setCustomerPhoneNumber(cleanPhone)
     }
   }, [searchParams])
 
@@ -101,32 +104,65 @@ export default function RateCustomerPage() {
 
   const handleSubmitReview = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    
+    // Validate phone number (just needs to be 10 digits)
+    const cleanPhone = customerPhoneNumber.replace(/\D/g, "")
+    if (cleanPhone.length !== 10) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Please enter a 10-digit phone number.",
+        variant: "destructive",
+      })
+      return
+    }
+
     if (
       overallRating === 0 ||
       behaviorRating === 0 ||
       paymentRating === 0 ||
       maintenanceRating === 0 ||
-      !reviewerRole ||
-      !customerPhoneNumber ||
-      customerPhoneNumber.length < 10
+      !reviewerRole
     ) {
       toast({
         title: "Missing Information",
-        description: "Please fill all required fields, ratings, and ensure a valid 10-digit phone number.",
+        description: "Please fill all required fields and ratings.",
         variant: "destructive",
       })
       return
     }
+
     setIsLoading(true)
     await new Promise((resolve) => setTimeout(resolve, 1500))
+    
+    // Create new review object
+    const newReview = {
+      customerDisplayId: generateDisplayId(cleanPhone),
+      overallRating,
+      behaviorRating,
+      paymentRating,
+      maintenanceRating,
+      comment,
+      voiceRecordingUrl,
+      date: new Date().toISOString().split('T')[0],
+      reviewer: "Sarah M.", // Mock current user
+      reviewerRole,
+      tags: generateTags(overallRating, comment)
+    }
+
+    // Add to reviews page if the function exists
+    if (typeof window !== 'undefined' && (window as any).addNewReview) {
+      (window as any).addNewReview(newReview)
+    }
+
     setIsLoading(false)
     toast({
       title: "Review Submitted!",
-      description: `Thank you for rating customer ${customerPhoneNumber}.`,
+      description: `Thank you for rating customer ${newReview.customerDisplayId}.`,
       className: "bg-green-500 text-white",
     })
+
     // Reset form
-    setCustomerPhoneNumber(searchParams.get("phone") || "") // Keep phone if from query
+    setCustomerPhoneNumber("")
     setOverallRating(0)
     setBehaviorRating(0)
     setPaymentRating(0)
@@ -134,6 +170,47 @@ export default function RateCustomerPage() {
     setComment("")
     setReviewerRole("")
     setVoiceRecordingUrl(null)
+
+    // Navigate to reviews page after a short delay
+    setTimeout(() => {
+      router.push('/reviews')
+    }, 2000)
+  }
+
+  // Generate display ID from phone number
+  const generateDisplayId = (phoneNumber: string): string => {
+    const names = ['John', 'Jane', 'Mike', 'Sarah', 'David', 'Lisa', 'Chris', 'Amy', 'Tom', 'Kate']
+    const lastInitials = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+    
+    const phoneSum = phoneNumber.split('').reduce((sum, digit) => sum + parseInt(digit) || 0, 0)
+    const firstName = names[phoneSum % names.length]
+    const lastInitial = lastInitials[phoneSum % lastInitials.length]
+    
+    return `${firstName} ${lastInitial}.`
+  }
+
+  // Generate tags based on rating and comment
+  const generateTags = (rating: number, comment: string): string[] => {
+    const tags: string[] = []
+    const lowerComment = comment.toLowerCase()
+
+    if (rating >= 4) {
+      if (lowerComment.includes('tip') || lowerComment.includes('generous')) tags.push('Generous Tipper')
+      if (lowerComment.includes('polite') || lowerComment.includes('pleasant')) tags.push('Polite')
+      if (lowerComment.includes('understanding') || lowerComment.includes('patient')) tags.push('Understanding')
+      if (lowerComment.includes('prompt') || lowerComment.includes('quick')) tags.push('Prompt Payment')
+      if (tags.length === 0) tags.push('Great Customer')
+    } else if (rating <= 2) {
+      if (lowerComment.includes('rude') || lowerComment.includes('difficult')) tags.push('Rude')
+      if (lowerComment.includes('mess') || lowerComment.includes('dirty')) tags.push('Messy')
+      if (lowerComment.includes('dispute') || lowerComment.includes('refund')) tags.push('Dispute')
+      if (lowerComment.includes('demanding') || lowerComment.includes('high maintenance')) tags.push('High Maintenance')
+      if (tags.length === 0) tags.push('Difficult Customer')
+    } else {
+      tags.push('Average')
+    }
+
+    return tags
   }
 
   return (
@@ -167,14 +244,18 @@ export default function RateCustomerPage() {
                 <Input
                   id="customerPhoneNumber"
                   type="tel"
-                  placeholder="e.g., (555) 123-4567"
+                  placeholder="e.g., 5551234567 or (555) 123-4567"
                   value={customerPhoneNumber}
-                  onChange={(e) => setCustomerPhoneNumber(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                  onChange={(e) => {
+                    // Allow any input but clean it for validation
+                    setCustomerPhoneNumber(e.target.value)
+                  }}
                   required
-                  pattern="\d{10}"
-                  title="Enter a 10-digit phone number"
                   className="h-11 text-base"
                 />
+                <p className="text-xs text-text-secondary">
+                  Enter any 10-digit phone number format
+                </p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="reviewerRole" className="flex items-center text-sm font-medium">
