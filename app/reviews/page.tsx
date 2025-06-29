@@ -18,6 +18,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { StarRatingInput } from "@/components/custom/star-rating"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
 import { redditService } from "@/lib/reddit"
@@ -91,6 +105,8 @@ const mockReviewsData: ReviewMock[] = [
 export default function MyReviewsPage() {
   const [reviews, setReviews] = useState<ReviewMock[]>(mockReviewsData)
   const [loadingReddit, setLoadingReddit] = useState<string | null>(null)
+  const [editingReview, setEditingReview] = useState<ReviewMock | null>(null)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
   const { toast } = useToast()
 
   const handleDeleteReview = (reviewId: string) => {
@@ -100,6 +116,25 @@ export default function MyReviewsPage() {
       title: "Review Deleted",
       description: "The review has been successfully deleted.",
       className: "bg-red-500 text-white",
+    })
+  }
+
+  const handleEditReview = (review: ReviewMock) => {
+    setEditingReview({ ...review })
+    setEditDialogOpen(true)
+  }
+
+  const handleSaveEdit = () => {
+    if (!editingReview) return
+
+    setReviews(reviews.map(r => r.id === editingReview.id ? editingReview : r))
+    setEditDialogOpen(false)
+    setEditingReview(null)
+    
+    toast({
+      title: "Review Updated",
+      description: "Your review has been successfully updated.",
+      className: "bg-green-500 text-white",
     })
   }
 
@@ -250,11 +285,104 @@ export default function MyReviewsPage() {
                 </div>
 
                 <div className="flex flex-wrap gap-2 items-center pt-3 border-t border-border-subtle mt-3">
-                  <Button variant="outline" size="sm" disabled>
-                    {" "}
-                    {/* Mock: Link to edit page */}
-                    <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Edit
-                  </Button>
+                  <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleEditReview(review)}
+                      >
+                        <Edit3 className="mr-1.5 h-3.5 w-3.5" /> Edit
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Edit Review for {editingReview?.customerDisplayId}</DialogTitle>
+                        <DialogDescription>
+                          Make changes to your review. Click save when you're done.
+                        </DialogDescription>
+                      </DialogHeader>
+                      {editingReview && (
+                        <div className="grid gap-4 py-4">
+                          <div className="space-y-4">
+                            <div>
+                              <Label className="text-sm font-medium mb-2 block">Overall Rating</Label>
+                              <StarRatingInput 
+                                value={editingReview.overallRating} 
+                                onChange={(rating) => setEditingReview({...editingReview, overallRating: rating})}
+                                size={28}
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label className="text-sm font-medium mb-2 block">Behavior Rating</Label>
+                              <StarRatingInput 
+                                value={editingReview.behaviorRating} 
+                                onChange={(rating) => setEditingReview({...editingReview, behaviorRating: rating})}
+                                size={24}
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label className="text-sm font-medium mb-2 block">Payment Rating</Label>
+                              <StarRatingInput 
+                                value={editingReview.paymentRating} 
+                                onChange={(rating) => setEditingReview({...editingReview, paymentRating: rating})}
+                                size={24}
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label className="text-sm font-medium mb-2 block">Maintenance Rating</Label>
+                              <StarRatingInput 
+                                value={editingReview.maintenanceRating} 
+                                onChange={(rating) => setEditingReview({...editingReview, maintenanceRating: rating})}
+                                size={24}
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="edit-role" className="text-sm font-medium">Your Role</Label>
+                              <Select 
+                                value={editingReview.reviewerRole} 
+                                onValueChange={(value) => setEditingReview({...editingReview, reviewerRole: value})}
+                              >
+                                <SelectTrigger id="edit-role" className="mt-1">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="owner">Owner</SelectItem>
+                                  <SelectItem value="manager">Manager</SelectItem>
+                                  <SelectItem value="server">Server</SelectItem>
+                                  <SelectItem value="cashier">Cashier</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="edit-comment" className="text-sm font-medium">Comment</Label>
+                              <Textarea
+                                id="edit-comment"
+                                value={editingReview.comment}
+                                onChange={(e) => setEditingReview({...editingReview, comment: e.target.value})}
+                                rows={4}
+                                className="mt-1"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button onClick={handleSaveEdit} className="bg-brand-red text-brand-red-foreground hover:bg-brand-red-hover">
+                          Save Changes
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive" size="sm" className="border-red-300 text-red-600 hover:bg-red-50">
