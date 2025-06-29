@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -33,7 +33,7 @@ import { reviewsStore } from "@/lib/reviews-store"
 // Force dynamic rendering to avoid prerendering issues with useSearchParams
 export const dynamic = 'force-dynamic'
 
-export default function RateCustomerPage() {
+function RateCustomerPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const { toast } = useToast()
@@ -151,7 +151,7 @@ export default function RateCustomerPage() {
       paymentRating,
       maintenanceRating,
       comment,
-      voiceRecordingUrl,
+      voiceRecordingUrl: voiceRecordingUrl || undefined,
       date: new Date().toISOString().split('T')[0],
       reviewer: "Sarah M.", // Mock current user
       reviewerRole,
@@ -419,5 +419,20 @@ function RatingInputSection({ title, icon: Icon, value, onChange }: RatingInputS
       </Label>
       <StarRatingInput value={value} onChange={onChange} size={32} />
     </div>
+  )
+}
+
+export default function RateCustomerPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-red mx-auto mb-4"></div>
+          <p className="text-text-secondary">Loading...</p>
+        </div>
+      </div>
+    }>
+      <RateCustomerPageContent />
+    </Suspense>
   )
 }
