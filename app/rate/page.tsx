@@ -32,6 +32,7 @@ import { reviewsStore } from "@/lib/reviews-store"
 
 // Force dynamic rendering to avoid prerendering issues with useSearchParams
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 function RateCustomerPageContent() {
   const searchParams = useSearchParams()

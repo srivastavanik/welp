@@ -12,6 +12,7 @@ import Script from "next/script"
 
 // Force dynamic rendering to prevent prerendering issues
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 interface Message {
   id: string

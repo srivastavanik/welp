@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge"
 
 // Force dynamic rendering to prevent prerendering issues
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 interface CustomerReviewMock {
   businessName: string

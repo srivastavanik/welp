@@ -2,6 +2,7 @@
 
 // Force dynamic rendering to prevent prerendering issues with client components
 export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
 
 import { useState, useEffect } from "react"
 import { PageHeader } from "@/components/custom/page-header"
