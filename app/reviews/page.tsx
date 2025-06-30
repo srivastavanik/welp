@@ -1,6 +1,6 @@
 "use client"
 
-// Force dynamic rendering to prevent prerendering issues with client components
+// Force dynamic rendering to prevent prerendering issues
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
