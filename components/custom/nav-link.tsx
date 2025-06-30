@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
+import { motion } from "framer-motion"
 
 interface NavLinkProps {
   href: string
@@ -21,13 +22,33 @@ export function NavLink({ href, icon: Icon, children, isMobile = false }: NavLin
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 py-2.5 text-text-primary transition-all hover:bg-bg-subtle hover:text-brand-red",
-        isActive && "bg-brand-red text-brand-red-foreground hover:bg-brand-red-hover hover:text-brand-red-foreground",
+        "relative flex items-center gap-3 rounded-lg px-3 py-2.5 transition-all duration-200",
+        "hover:bg-red-100/50 hover:text-red-600",
+        isActive 
+          ? "bg-gradient-brand text-white shadow-md hover:shadow-lg" 
+          : "text-gray-700 hover:translate-x-1",
         isMobile ? "text-lg" : "text-sm font-medium",
       )}
     >
-      <Icon className={cn("h-5 w-5", isMobile && "h-6 w-6")} />
-      {children}
+      {isActive && (
+        <motion.div
+          layoutId="activeTab"
+          className="absolute inset-0 bg-gradient-brand rounded-lg"
+          initial={false}
+          transition={{
+            type: "spring",
+            stiffness: 300,
+            damping: 30
+          }}
+        />
+      )}
+      <Icon className={cn(
+        "h-5 w-5 relative z-10 transition-transform duration-200",
+        isActive && "text-white",
+        !isActive && "group-hover:scale-110",
+        isMobile && "h-6 w-6"
+      )} />
+      <span className="relative z-10">{children}</span>
     </Link>
   )
 }
