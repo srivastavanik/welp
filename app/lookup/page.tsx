@@ -142,7 +142,7 @@ function ScoreCard({ title, score, icon, color }: { title: string; score: number
       </CardHeader>
       <CardContent className="pb-6">
         <StarRatingDisplay rating={score} size={18} className="justify-center mb-2" />
-        <p className="text-2xl font-bold">{score.toFixed(1)}</p>
+        <p className="text-2xl font-bold text-gradient-brand">{score.toFixed(1)}</p>
         <p className={cn("text-xs font-medium mt-1", quality.color)}>
           {quality.text}
         </p>
