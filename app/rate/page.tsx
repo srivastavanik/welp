@@ -34,11 +34,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { motion, AnimatePresence } from "framer-motion"
 
-
-// Force dynamic rendering to avoid prerendering issues with useSearchParams
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
-
 function RateCustomerPageContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -88,16 +83,13 @@ function RateCustomerPageContent() {
   });
 
   useEffect(() => {
-    try {
+    if (searchParams) {
       const phoneFromQuery = searchParams.get("phone")
       if (phoneFromQuery) {
         // Clean the phone number to only digits
         const cleanPhone = phoneFromQuery.replace(/\D/g, "")
         setCustomerPhoneNumber(cleanPhone)
       }
-    } catch (error) {
-      // Handle searchParams error gracefully
-      console.warn('Error accessing searchParams:', error)
     }
   }, [searchParams])
 
@@ -761,34 +753,27 @@ function RatingInputSection({ title, icon: Icon, value, onChange, color, onHover
   )
 }
 
-// Error boundary component for searchParams issues
-function SearchParamsErrorBoundary({ children }: { children: React.ReactNode }) {
+// Loading fallback component
+function RateCustomerLoading() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <motion.div 
-          className="text-center"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-        >
-          <motion.div 
-            className="w-16 h-16 rounded-full bg-gradient-brand mx-auto mb-4"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          />
-          <p className="text-gradient-brand font-medium">Loading rating form...</p>
-        </motion.div>
+    <div className="page-enter">
+      <div className="animate-pulse">
+        <div className="h-8 bg-gray-200 rounded w-1/3 mb-2"></div>
+        <div className="h-4 bg-gray-200 rounded w-2/3 mb-8"></div>
+        <div className="space-y-6">
+          <div className="h-32 bg-gray-200 rounded"></div>
+          <div className="h-64 bg-gray-200 rounded"></div>
+          <div className="h-48 bg-gray-200 rounded"></div>
+        </div>
       </div>
-    }>
-      {children}
-    </Suspense>
+    </div>
   )
 }
 
 export default function RateCustomerPage() {
   return (
-    <SearchParamsErrorBoundary>
+    <Suspense fallback={<RateCustomerLoading />}>
       <RateCustomerPageContent />
-    </SearchParamsErrorBoundary>
+    </Suspense>
   )
 }
