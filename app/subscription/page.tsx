@@ -1,5 +1,9 @@
 "use client"
 
+// Force dynamic rendering to prevent prerendering issues
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import type React from "react"
@@ -10,10 +14,6 @@ import { PageHeader } from "@/components/custom/page-header"
 import { useToast } from "@/hooks/use-toast"
 import { useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-
-// Force dynamic rendering to prevent prerendering issues
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
 
 const freeFeatures = [
   { text: "3 Customer Lookups per month", included: true },

@@ -1,5 +1,9 @@
 "use client"
 
+// Force dynamic rendering to prevent prerendering issues
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 import { cn } from "@/lib/utils"
 
 import type React from "react"
@@ -31,10 +35,6 @@ import { Separator } from "@/components/ui/separator"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { motion, AnimatePresence } from "framer-motion"
-
-// Force dynamic rendering to prevent prerendering issues
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
 
 interface CustomerReviewMock {
   businessName: string

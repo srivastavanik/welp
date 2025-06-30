@@ -1,5 +1,9 @@
 "use client"
 
+// Force dynamic rendering to prevent prerendering issues
+export const dynamic = 'force-dynamic'
+export const runtime = 'nodejs'
+
 import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -10,10 +14,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import Script from "next/script"
 import { motion, AnimatePresence } from "framer-motion"
-
-// Force dynamic rendering to prevent prerendering issues
-export const dynamic = 'force-dynamic'
-export const runtime = 'nodejs'
 
 interface Message {
   id: string
